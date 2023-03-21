@@ -25,7 +25,7 @@ app.use('/api/v1', routes);
 
 const PORT = process.env.PORT || 5200;
 
-//Darabase Configuration and Application Start
+//Database Configuration and Application Start
 mongoose.set('strictQuery', false);
 
 //HTTPS Server
