@@ -31,6 +31,7 @@ export const register = async (req, res) => {
       city:'',
       verifiedPhone: false,
       verifiedEmail: false,
+      lastLoginDate: ''
     });
     res.status(201).send({message:'User registered'});
   } catch (error) {
@@ -43,7 +44,10 @@ export const login = async (req, res) => {
     let user = await User.findOne({email: req.body.email});
     if (!user) return res.status(404).send({error: 'Email incorrect or user not registerd!'});
     if (!user.comparePassword(req.body.password)) return res.status(401).send({error: 'Password Incorrect!'})
-    res.status(200).send({message: 'User Login Successful!'});
+    res.status(200).send({
+      AccessToken: user.generateJWT(7,process.env.ACCESS_TOKEN_SECRET), 
+      RefreshToken: user.generateJWT(3,process.env.REFRESH_TOKEN_SECRET),
+      message: 'User Login Successful!'});
   } catch (error) {
     errorMessage(res,error);
   }

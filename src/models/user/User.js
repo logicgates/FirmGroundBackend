@@ -38,17 +38,20 @@ const userSchema = new Schema({
   },
   verifiedEmail: {
     type: Boolean,
+  },
+  lastLoginDate: {
+    type: Boolean,
   }
 });
 
-userSchema.methods.comparePassword = function(password) {
+userSchema.methods.comparePassword = function (password) {
   return bcrypt.compareSync(password, this.password);
 };
 
-userSchema.methods.generateJWT = function() {
+userSchema.methods.generateJWT = function (NumberOfDays, key) {
   const today = new Date();
   const expirationDate = new Date(today);
-  expirationDate.setDate(today.getDate() + 7); // Expires after 7 days
+  expirationDate.setDate(today.getDate() + NumberOfDays); // Expires after 7 days
 
   let payload = {
       id: this._id,
@@ -57,7 +60,7 @@ userSchema.methods.generateJWT = function() {
       name: this.name,
   };
 
-  return jwt.sign(payload, process.env.JWT_SECRET, {
+  return jwt.sign(payload, key, {
       expiresIn: parseInt(expirationDate.getTime() / 1000, 10)
   });
 };
