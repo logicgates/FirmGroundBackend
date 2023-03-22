@@ -28,7 +28,9 @@ export const register = async (req, res) => {
       dateOfBirth: req.body.dateOfBirth,
       emergencyName:'',
       emergencyContact:'',
-      city:''
+      city:'',
+      verifiedPhone: false,
+      verifiedEmail: false,
     });
     res.status(201).send({message:'User registered'});
   } catch (error) {
@@ -39,9 +41,8 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     let user = await User.findOne({email: req.body.email});
-    if (!user) return res.status(404).send({error: 'User is not registerd!'});
-    const comparePasswords = await bcrypt.compare(req.body.password, user.password);
-    if(!comparePasswords) return res.status(401).send({error: 'Username/Password Incorrect!'})
+    if (!user) return res.status(404).send({error: 'Email incorrect or user not registerd!'});
+    if (!user.comparePassword(req.body.password)) return res.status(401).send({error: 'Password Incorrect!'})
     res.status(200).send({message: 'User Login Successful!'});
   } catch (error) {
     errorMessage(res,error);
@@ -69,7 +70,29 @@ export const resetPassword = async (req, res) => {
       { $set: {password: await bcrypt.hash(req.body.password, 10)} },
       { new: true }
   );
-  res.status(201).send({message: 'Password has been reset!'});
+    res.status(201).send({message: 'Password has been reset!'});
+  } catch (error) {
+    errorMessage(res,error);
+  }
+}
+
+export const deleteUser = async (req, res) => {
+  try {
+    let userID = req.params.id;
+    let user = await User.findById(userID);
+    if(!user) return res.status(404).send({error: 'User does not exist!'});
+    await User.deleteOne({user});
+    res.status(201).send({message: 'User has been deleted!'});
+  } catch (error) {
+    errorMessage(res,error);
+  }
+}
+
+export const updateUser = async (req, res) => {
+  try {
+    let userID = req.params.id;
+    let user = await User.findById(userID);
+    if(!user) return res.status(404).send({error: 'User does not exist!'});
   } catch (error) {
     errorMessage(res,error);
   }

@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, getAllUsers, login, forgotPassword, resetPassword } from '../../controllers/user/userController.js';
+import { register, getAllUsers, login, forgotPassword, resetPassword, deleteUser } from '../../controllers/user/userController.js';
 
 const router = express.Router();
 
@@ -13,6 +13,6 @@ router.post('/forgot-password', forgotPassword);
 
 router.patch('/reset-password/:id', resetPassword);
 
-// router.post('/delete', deleteUser)
+router.delete('/delete/:id', deleteUser)
 
 export default router;
