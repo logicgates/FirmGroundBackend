@@ -14,6 +14,15 @@ let userSchema = object({
   city: string()
 });
 
+let updateUserSchema = object({
+  name: string(),
+  dateOfBirth: string().required('Date of Birth is required.'),
+  phone: string().required('Contact Number is required.'),
+  emergencyName: string(),
+  emergencyContact: string(),
+  city: string()
+});
+
 let loginSchema = object({
   email: string().email().required('Email is required.'),
   password: string().required('Password is required.'),
@@ -99,6 +108,7 @@ export const deleteUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
+    await updateUserSchema.validate(req.body);
     let userID = req.params.id;
     let user = await User.findById(userID);
     if(!user) return res.status(404).send({error: 'User does not exist.'});
