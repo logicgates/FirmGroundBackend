@@ -28,6 +28,12 @@ const userSchema = new Schema({
   },
   city: {
     type: String,
+  },
+  verifiedPhone: {
+    type: Boolean,
+  },
+  verifiedEmail: {
+    type: Boolean,
   }
 });
 
