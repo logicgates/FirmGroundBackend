@@ -81,7 +81,7 @@ export const deleteUser = async (req, res) => {
     let userID = req.params.id;
     let user = await User.findById(userID);
     if(!user) return res.status(404).send({error: 'User does not exist!'});
-    await User.deleteOne({user});
+    await User.deleteOne({_id: userID});
     res.status(201).send({message: 'User has been deleted!'});
   } catch (error) {
     errorMessage(res,error);
@@ -93,6 +93,19 @@ export const updateUser = async (req, res) => {
     let userID = req.params.id;
     let user = await User.findById(userID);
     if(!user) return res.status(404).send({error: 'User does not exist!'});
+    await User.updateOne(
+      { _id: userID },
+      { $set: {
+        name: updateBody.name,
+        password: await bcrypt.hash(req.body.password, 10),
+        phone: updateBody.phone,
+        dateOfBirth: updateBody.dateOfBirth,
+        emergencyName: updateBody.emergencyName,
+        emergencyContact: updateBody.emergencyContact,
+        city: updateBody.city 
+      }
+    }, { new: true }
+  );
   } catch (error) {
     errorMessage(res,error);
   }
