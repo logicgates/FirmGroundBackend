@@ -101,7 +101,6 @@ export const updateUser = async (req, res) => {
       { _id: userID },
       { $set: {
         name: updateBody.name,
-        password: await bcrypt.hash(req.body.password, 10),
         phone: updateBody.phone,
         dateOfBirth: updateBody.dateOfBirth,
         emergencyName: updateBody.emergencyName,
