@@ -40,7 +40,7 @@ const userSchema = new Schema({
     type: Boolean,
   },
   lastLoginDate: {
-    type: Boolean,
+    type: String,
   }
 });
 
@@ -51,13 +51,11 @@ userSchema.methods.comparePassword = function (password) {
 userSchema.methods.generateJWT = function (NumberOfDays, key) {
   const today = new Date();
   const expirationDate = new Date(today);
-  expirationDate.setDate(today.getDate() + NumberOfDays); // Expires after 7 days
+  expirationDate.setDate(today.getDate() + NumberOfDays); // Expires after NumberOfDays
 
   let payload = {
       id: this._id,
       email: this.email,
-      phone: this.phone,
-      name: this.name,
   };
 
   return jwt.sign(payload, key, {

@@ -6,12 +6,17 @@ import { object, string } from 'yup';
 let userSchema = object({
   name: string(),
   email: string().email().required('Email is required.'),
-  password: string().required('Password is required.'),
+  password: string().required('Password is required.').min(8, 'Password is too short - should be 8 chars minimum.'),
   dateOfBirth: string().required('Date of Birth is required.'),
   phone: string().required('Contact Number is required.'),
   emergencyName: string(),
   emergencyContact: string(),
   city: string()
+});
+
+let loginSchema = object({
+  email: string().email().required('Email is required.'),
+  password: string().required('Password is required.'),
 });
 
 export const register = async (req, res) => {
@@ -41,13 +46,21 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
+    await loginSchema.validate(req.body);
     let user = await User.findOne({email: req.body.email});
-    if (!user) return res.status(404).send({error: 'Email incorrect or user not registerd!'});
-    if (!user.comparePassword(req.body.password)) return res.status(401).send({error: 'Password Incorrect!'})
+    if (!user) return res.status(404).send({error: 'No account with that email address'});
+    if (!user.comparePassword(req.body.password)) return res.status(401).send({error: 'Password incorrect'})
+    let date_ob = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
+    await User.updateOne(
+      { _id: user.id },
+      { $set: {lastLoginDate: date_ob} },
+      { new: true }
+    );
+    // User.findByIdAndUpdate(user.id, {lastLoginDate: new Date()})
     res.status(200).send({
-      AccessToken: user.generateJWT(7,process.env.ACCESS_TOKEN_SECRET), 
-      RefreshToken: user.generateJWT(3,process.env.REFRESH_TOKEN_SECRET),
-      message: 'User Login Successful!'});
+      accessToken: user.generateJWT(7,process.env.ACCESS_TOKEN_SECRET), 
+      refreshToken: user.generateJWT(30,process.env.REFRESH_TOKEN_SECRET),
+      user});
   } catch (error) {
     errorMessage(res,error);
   }
@@ -56,9 +69,9 @@ export const login = async (req, res) => {
 export const forgotPassword = async (req, res) => {
   try {
     let user = await User.findOne({email: req.body.email});
-    if (!user) return res.status(404).send({error: 'User is not registerd!'});
+    if (!user) return res.status(404).send({error: 'User is not registerd.'});
     // <---> Email configuration <--->
-    res.status(202).send({message: 'Email send with reset link!'});
+    res.status(202).send({message: 'Email send with reset link.'});
   } catch (error) {
     errorMessage(res,error);
   }
@@ -68,13 +81,13 @@ export const resetPassword = async (req, res) => {
   try {
     let userID = req.params.id;
     let user = await User.findById(userID);
-    if(!user) return res.status(404).send({error: 'User does not exist!'});
+    if(!user) return res.status(404).send({error: 'User does not exist.'});
     await User.updateOne(
       { _id: userID },
       { $set: {password: await bcrypt.hash(req.body.password, 10)} },
       { new: true }
   );
-    res.status(201).send({message: 'Password has been reset!'});
+    res.status(201).send({message: 'Password has been reset.'});
   } catch (error) {
     errorMessage(res,error);
   }
@@ -84,9 +97,9 @@ export const deleteUser = async (req, res) => {
   try {
     let userID = req.params.id;
     let user = await User.findById(userID);
-    if(!user) return res.status(404).send({error: 'User does not exist!'});
+    if(!user) return res.status(404).send({error: 'User does not exist.'});
     await User.deleteOne({_id: userID});
-    res.status(201).send({message: 'User has been deleted!'});
+    res.status(201).send({message: 'User has been deleted.'});
   } catch (error) {
     errorMessage(res,error);
   }
@@ -96,7 +109,7 @@ export const updateUser = async (req, res) => {
   try {
     let userID = req.params.id;
     let user = await User.findById(userID);
-    if(!user) return res.status(404).send({error: 'User does not exist!'});
+    if(!user) return res.status(404).send({error: 'User does not exist.'});
     await User.updateOne(
       { _id: userID },
       { $set: {
