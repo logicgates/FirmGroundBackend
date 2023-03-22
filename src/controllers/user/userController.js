@@ -51,12 +51,8 @@ export const login = async (req, res) => {
     if (!user) return res.status(404).send({error: 'No account with that email address'});
     if (!user.comparePassword(req.body.password)) return res.status(401).send({error: 'Password incorrect'})
     let date_ob = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
-    await User.updateOne(
-      { _id: user.id },
-      { $set: {lastLoginDate: date_ob} },
-      { new: true }
-    );
-    // User.findByIdAndUpdate(user.id, {lastLoginDate: new Date()})
+    await User.updateOne({_id: user.id}, {$set: {lastLoginDate: date_ob}}, {new: true});
+    // User.findByIdAndUpdate(user.id, {lastLoginDate: date_ob})
     res.status(200).send({
       accessToken: user.generateJWT(7,process.env.ACCESS_TOKEN_SECRET), 
       refreshToken: user.generateJWT(30,process.env.REFRESH_TOKEN_SECRET),
@@ -82,11 +78,7 @@ export const resetPassword = async (req, res) => {
     let userID = req.params.id;
     let user = await User.findById(userID);
     if(!user) return res.status(404).send({error: 'User does not exist.'});
-    await User.updateOne(
-      { _id: userID },
-      { $set: {password: await bcrypt.hash(req.body.password, 10)} },
-      { new: true }
-  );
+    await User.updateOne({_id: userID},{$set: {password: await bcrypt.hash(req.body.password,10)}},{ new: true });
     res.status(201).send({message: 'Password has been reset.'});
   } catch (error) {
     errorMessage(res,error);
