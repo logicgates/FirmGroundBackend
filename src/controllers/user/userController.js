@@ -4,10 +4,13 @@ import User from '../../models/user/User.js';
 import { object, string } from 'yup';
 
 let userSchema = object({
-  name: string(),
+  firstName: string().required('First name required.'),
+  lastName: string().required('Last name required.'),
   email: string().email().required('Email is required.'),
   password: string().required('Password is required.').min(8, 'Password is too short - should be 8 chars minimum.'),
   dateOfBirth: string().required('Date of Birth is required.'),
+  registerDate: string(),
+  countryCode: string(),
   phone: string().required('Contact Number is required.'),
   emergencyName: string(),
   emergencyContact: string(),
@@ -15,8 +18,10 @@ let userSchema = object({
 });
 
 let updateUserSchema = object({
-  name: string(),
+  firstName: string().required('First name required.'),
+  lastName: string().required('Last name required.'),
   dateOfBirth: string().required('Date of Birth is required.'),
+  countryCode: string(),
   phone: string().required('Contact Number is required.'),
   emergencyName: string(),
   emergencyContact: string(),
@@ -34,18 +39,24 @@ export const register = async (req, res) => {
     let alreadyExist = await User.findOne({email: req.body.email});
     if (alreadyExist) return res.status(400).send({error:'User already exists'});
     let encryptedPassword = await bcrypt.hash(req.body.password, 10);
+    let date = new Date();
     await User.create({
-      name:'',
+      firstName:req.body.firstName,
+      lastName:req.body.lastName,
       email: req.body.email,
       password: encryptedPassword,
       phone: req.body.phone,
       dateOfBirth: req.body.dateOfBirth,
+      registerDate: date,
+      countryCode: req.body.countryCode,
+      city:'',
       emergencyName:'',
       emergencyContact:'',
-      city:'',
+      status:'inactive',
       verifiedPhone: false,
       verifiedEmail: false,
-      lastLoginDate: ''
+      lastLoginDate: '',
+      pictureUrl:'',
     });
     res.status(201).send({message:'User registered'});
   } catch (error) {
@@ -60,8 +71,7 @@ export const login = async (req, res) => {
     if (!user) return res.status(404).send({error: 'No account with that email address'});
     if (!user.comparePassword(req.body.password)) return res.status(401).send({error: 'Password incorrect'})
     let date_ob = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
-    await User.updateOne({_id: user.id}, {$set: {lastLoginDate: date_ob}}, {new: true});
-    // User.findByIdAndUpdate(user.id, {lastLoginDate: date_ob})
+    await User.updateOne({_id: user.id}, {$set: {lastLoginDate: date_ob, status: 'active'}}, {new: true});
     res.status(200).send({
       accessToken: user.generateJWT(7,process.env.ACCESS_TOKEN_SECRET), 
       refreshToken: user.generateJWT(30,process.env.REFRESH_TOKEN_SECRET),
@@ -108,6 +118,7 @@ export const deleteUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
+    let updateBody = req.body;
     await updateUserSchema.validate(req.body);
     let userID = req.params.id;
     let user = await User.findById(userID);
@@ -124,6 +135,7 @@ export const updateUser = async (req, res) => {
       }
     }, { new: true }
   );
+  res.status(201).send({user: user, message:'User has been updated.'});
   } catch (error) {
     errorMessage(res,error);
   }

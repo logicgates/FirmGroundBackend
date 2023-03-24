@@ -3,8 +3,13 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const userSchema = new Schema({
-  name: {
+  firstName: {
     type: String,
+    required: true,
+  },
+  lastName: {
+    type: String,
+    required: true,
   },
   email: {
     type: String,
@@ -24,13 +29,22 @@ const userSchema = new Schema({
     type: String,
     require: true,
   },
+  registerDate: {
+    type: String,
+  },
+  countryCode: {
+    type: String,
+  },
+  city: {
+    type: String,
+  },
   emergencyName: {
     type: String,
   },
   emergencyContact: {
     type: String,
   },
-  city: {
+  status: {
     type: String,
   },
   verifiedPhone: {
@@ -40,6 +54,9 @@ const userSchema = new Schema({
     type: Boolean,
   },
   lastLoginDate: {
+    type: String,
+  },
+  pictureUrl: {
     type: String,
   }
 });
