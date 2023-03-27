@@ -13,19 +13,25 @@ const matchSchema = new Schema({
     title: {
         type: String,
     },
-    location: {
+    location: { // Stadium
         type: String,
     },
     pictureUrl: {
         type: URL,
     },
-    stadium: {
+    type: { // Type of match
         type: String,
     },
     date: {
         type: String,
     },
-    time: {
+    meetTime: {
+        type: String,
+    },
+    kickOff: {
+        type: String,
+    },
+    duration: {
         type: String,
     },
     shift: {
@@ -52,7 +58,7 @@ const matchSchema = new Schema({
     cost: {
         type: Number,
     },
-    isRecurring: {
+    recurring: {
         type: String,
     },
     status: {
@@ -60,6 +66,9 @@ const matchSchema = new Schema({
     },
     amountCollected: {
         type: Number,
+    },
+    referee: {
+        type: Boolean,
     }
 })
 

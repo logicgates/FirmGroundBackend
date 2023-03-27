@@ -41,7 +41,7 @@ export const register = async (req, res) => {
   try {
     await userSchema.validate(req.body);
     let alreadyExist = await User.findOne({email: req.body.email});
-    if (alreadyExist) return res.status(400).send({error:'User already exists'});
+    if (alreadyExist) return res.status(400).send({error:'User already exists.'});
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(req.body.password, salt);
     let date = new Date();
