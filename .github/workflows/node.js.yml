@@ -27,4 +27,4 @@ jobs:
         run: yarn install
       
       - name: Run the project
-        run: yarn dev
+        run: pm2 restart firmground
