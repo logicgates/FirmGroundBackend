@@ -28,7 +28,7 @@ let matchSchema = object({
     referee: string(),
 });
 
-export const create = async (req,res) => {
+export const createMatch = async (req,res) => {
   try {
     await matchSchema.validate(req.body);
     let alreadyExist = await Match.findOne({email: req.body.email});

@@ -1,8 +1,8 @@
 import express from 'express';
-import { create } from '../../controllers/match/matchController';
+import { createMatch } from '../../controllers/match/matchController';
 
 const router = express.Router();
 
-router.post('/create', create);
+router.post('/create', createMatch);
 
 export default router;

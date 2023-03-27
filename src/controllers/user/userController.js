@@ -45,7 +45,7 @@ export const register = async (req, res) => {
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(req.body.password, salt);
     let date = new Date();
-    await User.create({
+    const newUser = await User.create({
       firstName:req.body.firstName,
       lastName:req.body.lastName,
       email: req.body.email,
