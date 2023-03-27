@@ -1,5 +1,5 @@
 import { errorMessage } from '../../config/config.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import User from '../../models/user/User.js';
 import { object, string } from 'yup';
 
@@ -33,18 +33,23 @@ let loginSchema = object({
   password: string().required('Password is required.'),
 });
 
+let changePasswordSchema = object({
+  password: string().required('Password is required.').min(8, 'Password is too short - should be 8 chars minimum.'),
+});
+
 export const register = async (req, res) => {
   try {
     await userSchema.validate(req.body);
     let alreadyExist = await User.findOne({email: req.body.email});
     if (alreadyExist) return res.status(400).send({error:'User already exists'});
-    let encryptedPassword = await bcrypt.hash(req.body.password, 10);
+    const salt = await bcrypt.genSalt(9);
+    const hashPassword = await bcrypt.hash(req.body.password, salt);
     let date = new Date();
     await User.create({
       firstName:req.body.firstName,
       lastName:req.body.lastName,
       email: req.body.email,
-      password: encryptedPassword,
+      password: hashPassword,
       phone: req.body.phone,
       dateOfBirth: req.body.dateOfBirth,
       registerDate: date,
@@ -67,7 +72,7 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     await loginSchema.validate(req.body);
-    let user = await User.findOne({email: req.body.email});
+    const user = await User.findOne({email: req.body.email});
     if (!user) return res.status(404).send({error: 'No account with that email address'});
     if (!user.comparePassword(req.body.password)) return res.status(401).send({error: 'Password incorrect'})
     let date_ob = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
@@ -93,38 +98,54 @@ export const forgotPassword = async (req, res) => {
 }
 
 export const resetPassword = async (req, res) => {
+  const { userId } = req.params;
+  const { password, confirmPassword } = req.body
   try {
-    let userID = req.params.id;
-    let user = await User.findById(userID);
+    await changePasswordSchema.validate(req.body);
+    let user = await User.findById(userId);
     if(!user) return res.status(404).send({error: 'User does not exist.'});
-    await User.updateOne({_id: userID},{$set: {password: await bcrypt.hash(req.body.password,10)}},{ new: true });
+    if (password !== confirmPassword)
+      return res.status(400).send({ error: 'Passwords do not match.' });
+    const salt = await bcrypt.genSalt(9);
+    const hashPassword = await bcrypt.hash(password, salt);
+    const updatedUser = await User.findByIdAndUpdate(userId, { password: hashPassword });
+    if (!updatedUser) res.send(500).send({error: 'Something went wrong please try again later.'})
     res.status(201).send({message: 'Password has been reset.'});
   } catch (error) {
     errorMessage(res,error);
   }
 }
 
-export const deleteUser = async (req, res) => {
+export const getUser = async (req, res) => {
+  const { userId } = req.params;
   try {
-    let userID = req.params.id;
-    let user = await User.findById(userID);
-    if(!user) return res.status(404).send({error: 'User does not exist.'});
-    await User.deleteOne({_id: userID});
-    res.status(201).send({message: 'User has been deleted.'});
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).send({ error: 'User not found.' });
+    res.status(200).send({ user });
+  } catch (error) {
+    errorMessage(res,error);
+  }
+}
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find();
+    res.status(200).send(users);
+    console.log(users)
   } catch (error) {
     errorMessage(res,error);
   }
 }
 
 export const updateUser = async (req, res) => {
+  const { userId } = req.params;
   try {
     let updateBody = req.body;
     await updateUserSchema.validate(req.body);
-    let userID = req.params.id;
-    let user = await User.findById(userID);
+    const user = await User.findById(userId);
     if(!user) return res.status(404).send({error: 'User does not exist.'});
     await User.updateOne(
-      { _id: userID },
+      { _id: userId },
       { $set: {
         name: updateBody.name,
         phone: updateBody.phone,
@@ -141,11 +162,13 @@ export const updateUser = async (req, res) => {
   }
 }
 
-export const getAllUsers = async (req, res) => {
+export const deleteUser = async (req, res) => {
+  const { userId } = req.params;
   try {
-    let users = await User.find();
-    res.status(200).send(users);
-    console.log(users)
+    const user = await User.findById(userId);
+    if(!user) return res.status(404).send({error: 'User does not exist.'});
+    await User.deleteOne({_id: userId});
+    res.status(201).send({message: 'User has been deleted.'});
   } catch (error) {
     errorMessage(res,error);
   }
