@@ -76,3 +76,15 @@ export const getMatches = async (req,res) => {
     errorMessage(res,error);
   }
 }
+
+export const deleteMatch = async (req,res) => {
+  const { matchId } = req.body;
+  try {
+    const match = await Match.findById(matchId);
+    if(!match) return res.status(404).send({error: 'Match does not exist.'});
+    await Match.deleteOne({_id: matchId});
+    res.status(201).send({message: 'Match has been removed.'});
+  } catch (error) {
+    errorMessage(res,error);
+  }
+}
