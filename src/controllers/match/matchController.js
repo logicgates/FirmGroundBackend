@@ -3,9 +3,6 @@ import Match from '../../models/match/Match.js';
 import { object, string } from 'yup';
 
 let matchSchema = object({
-    userList: string(),
-    teamAId: string(),
-    teamBId: string(),
     title: string().required('Title required.'),
     location: string().required('Location is required.'),
     pictureUrl: string(),
