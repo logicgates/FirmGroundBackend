@@ -34,9 +34,11 @@ export const createMatch = async (req,res) => {
     let alreadyExist = await Match.findOne({email: req.body.email});
     if (alreadyExist) return res.status(400).send({error:'Match already exists.'});
     await Match.create({
-        userList: req.body.userList,
-        teamAId: req.body.teamAId,
-        teamBId: req.body.teamBId,
+        groupId: req.body.groupId,
+        joingList: [],
+        notJoingList: [],
+        teamA: [],
+        teamB: [],
         title: req.body.title,
         location: req.body.location,
         pictureUrl: req.body.pictureUrl,
@@ -61,5 +63,16 @@ export const createMatch = async (req,res) => {
       res.status(201).send({message:'Match created.'});
   } catch (error) {
         errorMessage(res,error);
+  }
+}
+
+export const getMatches = async (req,res) => {
+  const { groupId } = req.body;
+  try {
+    const groupMatches = await Match.find({groupId}); // Find all matches for that group chat
+    if (!groupMatches) return res.status(404).send({ error: 'No matches found.' });
+    res.status(200).send({ groupMatches });
+  } catch (error) {
+    errorMessage(res,error);
   }
 }
