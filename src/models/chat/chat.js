@@ -1,16 +1,22 @@
 import mongoose, { Schema } from 'mongoose';
 
 const chatSchema = new Schema({
-    userA: {
+    title: {
         type: String,
+    },
+    admins: {
+        type: Array,
         required: true
     },
-    userB: {
-        type: String,
+    membersList: {
+        type: Array,
         required: true
     },
     creationDate: {
         type: String,
+    },
+    isPrivate: {
+        type: Boolean,
     }
 })
 

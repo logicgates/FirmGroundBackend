@@ -1,14 +1,14 @@
 import mongoose, { Schema } from 'mongoose';
 
 const matchSchema = new Schema({
-    userList: {
+    groupId: {
         type: String,
     },
-    teamAId: {
-        type: String,
+    teamA: { // List of members' id in team A
+        type: Array,
     },
-    teamBId: {
-        type: String,
+    teamB: { // List of members' id in team B
+        type: Array,
     },
     title: {
         type: String,

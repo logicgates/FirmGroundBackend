@@ -1,15 +1,34 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/Chat.js';
+import User from '../../models/user/User.js';
 
 export const createChat = async (req,res) => {
-    const { userId } = req.params;
+    const { members } = req.body;
+    const membersArray = members.split(',');
   try {
+    let privateUser = ''
+    let chatAlreadyExists = false;
+    let checkIfPrivate = membersArray.length > 1 ? false : true; // Checking if chat is private or group
+    if (checkIfPrivate) {
+      privateUser = await User.findById(membersArray[0]);
+      chatAlreadyExists = await Chat.find({ // Checking if private chat already exists
+        $and: [ 
+          { membersList: privateUser.id }, 
+          { isPrivate: true }
+        ],
+      });
+    }
+    if (chatAlreadyExists) return res.status(400).send({error:'Private chat already exists.'});
     let today = new Date();
     let newChat = await Chat.create({
-      userA: userId,
-      userB: req.body.userB,
+      title: checkIfPrivate === true ? privateUser.firstName + ' ' + privateUser.lastName : req.body.title,
+      admins: req.params.userId,
+      membersList: [],
       creationDate: today,
+      isPrivate: checkIfPrivate
     });
+    membersArray.forEach((member) => { newChat.membersList.push(member); });
+    newChat.save();
     res.status(201).send({chat: newChat, message:'Chat created.'});
   } catch (error) {
         errorMessage(res,error);
@@ -21,8 +40,8 @@ export const getChats = async (req,res) => {
   try {
     const userChats = await Chat.find({ // Find all chats the user is in only
       $or: [ 
-        { userA: userId }, 
-        { userB: userId }
+        { admins: userId }, 
+        { membersList: userId }
       ],
     });
     if (!userChats) return res.status(404).send({ error: 'No chats found.' });
