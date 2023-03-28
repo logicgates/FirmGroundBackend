@@ -1,12 +1,15 @@
 import mongoose, { Schema } from 'mongoose';
 
-const chatSchema = new Schema({
-    userA: {
+const groupSchema = new Schema({
+    title: {
         type: String,
+    },
+    admins: {
+        type: Array,
         required: true
     },
-    userB: {
-        type: String,
+    membersList: {
+        type: Array,
         required: true
     },
     creationDate: {
@@ -14,4 +17,4 @@ const chatSchema = new Schema({
     }
 })
 
-export default mongoose.model('Chat', chatSchema);
+export default mongoose.model('Group', groupSchema);

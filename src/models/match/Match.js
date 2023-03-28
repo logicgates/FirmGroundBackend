@@ -17,7 +17,7 @@ const matchSchema = new Schema({
         type: String,
     },
     pictureUrl: {
-        type: URL,
+        type: String,
     },
     type: { // Type of match
         type: String,
