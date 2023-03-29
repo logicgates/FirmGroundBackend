@@ -427,3 +427,55 @@ export const socialAccountLogin = async (req, res) => {
     errorMessage(res, error);
   }
 };
+
+export const resendVerifyForgotCode = async (req, res) => {
+  try {
+    await resendVerifySchema.validate(req.body);
+    const user = await User.findOne({ email: req.body?.email }).exec();
+    if (!user)
+      return res
+        .status(404)
+        .send({ error: 'User not exist against this email.' });
+    await UserVerification.deleteMany({ userId: user?._id });
+    let verificationCode = generateRandomString(6);
+    const salt = await bcrypt.genSalt(9);
+    const hashCode = await bcrypt.hash(verificationCode, salt);
+    const userVerification = await UserVerification.create({
+      code: hashCode,
+      userId: user?._id,
+      expireAt: Date.now() + 18000000, //Expire in 5 minutes
+    });
+    if (!userVerification)
+      return res
+        .status(500)
+        .send({ error: 'Something went wrong please try again later.' });
+    const msg = {
+      from: 'firmground@gmail.com',
+      template_id: process.env.SENDGRID_TEM_ID_FOR_FORGOT_PASSWORD,
+      personalizations: [
+        {
+          to: { email: `${user.email}` },
+          dynamic_template_data: {
+            subject: 'Forgot Password Email',
+            verification_code: `${verificationCode}`,
+          },
+        },
+      ],
+    };
+    sgMail
+      .send(msg)
+      .then(() => {
+        res.status(200).send({
+          message: 'Forgot Password Email is sent. Please check your email.',
+          userId: user?._id,
+          email: req.body?.email,
+          codeHash: hashCode,
+        });
+      })
+      .catch((error) => {
+        res.status(401).send({ error: error });
+      });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};

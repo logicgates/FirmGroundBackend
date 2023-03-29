@@ -8,7 +8,8 @@ import {
     verifyForgotCode, 
     generateRefreshToken,
     verifyUserRegisteration,
-    socialAccountLogin 
+    socialAccountLogin,
+    resendVerifyForgotCode
 } from '../../controllers/auth/authController.js';
 
 const router = express.Router();
@@ -30,6 +31,8 @@ router.patch('/update/:userId', updateUser)
 router.post('/forgot-password', forgotPassword);
 
 router.post('/verify-code', verifyForgotCode);
+
+router.post('/resend-verify-code', resendVerifyForgotCode);
 
 router.get('/refresh-token/:refreshToken', generateRefreshToken);
 
