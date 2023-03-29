@@ -6,6 +6,11 @@ import UserVerification from '../../models/UserVerification/UserVerification.js'
 import { object, string } from 'yup';
 import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+dotenv.config();
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const mailAddress = 'myfirmground@gmail.com';
 
 const registerSchema = object({
   firstName: string().required('First name required.'),
@@ -81,7 +86,7 @@ export const register = async (req, res) => {
       { expiresIn: '1d', algorithm: 'HS512' }
     );
     const msg = {
-      from: 'firmground@gmail.com',
+      from: mailAddress,
       template_id: process.env.SENDGRID_TEM_ID_FOR_VERIFY_EMAIL,
       personalizations: [
         {
@@ -98,8 +103,9 @@ export const register = async (req, res) => {
       .send(msg)
       .then(() => {
         res.status(200).send({
-          message:
-            'Your account has been created and we send you a verification email. Please check your email and verify your account.',
+          message: 
+            'Your account has been created and we send you a verification email.' +
+            'Please check your email and verify your account.',
           verifyToken,
         });
       })
@@ -137,7 +143,54 @@ export const login = async (req, res) => {
   } catch (error) {
     errorMessage(res,error);
   }
-}
+};
+
+export const verifyUserRegisteration = async (req, res) => {
+  const { token } = req.params;
+  try {
+    const currentLoginDate = new Date();
+    await verifyUserRegisterationSchema.validate(req.body);
+    const { userId, code, email } = await jwt.verify(
+      token,
+      process.env.ACCESS_TOKEN_SECRET
+    );
+    if (code !== req.body?.code)
+      return res.status(400).send({
+        message: 'Invalid verificaiton code.',
+      });
+    const user = await User.findOne({ _id: userId, email }, '-deleted -__v');
+    if (!user)
+      return res.status(404).send({
+        message: 'Your account not found.',
+      });
+    if (user?._doc?.isActive)
+      return res.status(400).send({
+        message: 'Your account is already verified.',
+      });
+    const sessionUser = { userId: user?._id, email: user?.email };
+    const accessToken = await jwt.sign(
+      { user: sessionUser },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '7d', algorithm: 'HS512' }
+    );
+    const refreshToken = await jwt.sign(
+      { user: sessionUser },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: '30d', algorithm: 'HS512' }
+    );
+    await User.findByIdAndUpdate(user?._id, {
+      lastLoginAt: currentLoginDate,
+      isActive: true,
+    });
+    res.status(200).send({
+      user: { ...user?._doc, lastLoginAt: currentLoginDate, isActive: true },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
   
 export const forgotPassword = async (req, res) => {
   try {
@@ -157,7 +210,7 @@ export const forgotPassword = async (req, res) => {
         .status(500)
         .send({ error: 'Something went wrong please try again later.' });
     const msg = {
-      from: 'firmground@gmail.com',
+      from: mailAddress,
       template_id: process.env.SENDGRID_TEM_ID_FOR_FORGOT_PASSWORD,
       personalizations: [
         {
@@ -186,7 +239,7 @@ export const forgotPassword = async (req, res) => {
   } catch (error) {
     errorMessage(res,error);
   }
-}
+};
 
 export const verifyForgotCode = async (req, res) => {
   try {
@@ -277,53 +330,6 @@ export const generateRefreshToken = async (req, res) => {
     res.status(200).send({
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
-    });
-  } catch (error) {
-    errorMessage(res, error);
-  }
-};
-
-export const verifyUserRegisteration = async (req, res) => {
-  const { token } = req.params;
-  try {
-    const currentLoginDate = new Date();
-    await verifyUserRegisterationSchema.validate(req.body);
-    const { userId, code, email } = await jwt.verify(
-      token,
-      process.env.ACCESS_TOKEN_SECRET
-    );
-    if (code !== req.body?.code)
-      return res.status(400).send({
-        message: 'Invalid verificaiton code.',
-      });
-    const user = await User.findOne({ _id: userId, email }, '-deleted -__v');
-    if (!user)
-      return res.status(404).send({
-        message: 'Your account not found.',
-      });
-    if (user?._doc?.isActive)
-      return res.status(400).send({
-        message: 'Your account is already verified.',
-      });
-    const sessionUser = { userId: user?._id, email: user?.email };
-    const accessToken = await jwt.sign(
-      { user: sessionUser },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: '7d', algorithm: 'HS512' }
-    );
-    const refreshToken = await jwt.sign(
-      { user: sessionUser },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: '30d', algorithm: 'HS512' }
-    );
-    await User.findByIdAndUpdate(user?._id, {
-      lastLoginAt: currentLoginDate,
-      isActive: true,
-    });
-    res.status(200).send({
-      user: { ...user?._doc, lastLoginAt: currentLoginDate, isActive: true },
-      accessToken,
-      refreshToken,
     });
   } catch (error) {
     errorMessage(res, error);
@@ -451,7 +457,7 @@ export const resendVerifyForgotCode = async (req, res) => {
         .status(500)
         .send({ error: 'Something went wrong please try again later.' });
     const msg = {
-      from: 'firmground@gmail.com',
+      from: mailAddress,
       template_id: process.env.SENDGRID_TEM_ID_FOR_FORGOT_PASSWORD,
       personalizations: [
         {
