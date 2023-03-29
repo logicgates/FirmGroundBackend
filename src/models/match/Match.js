@@ -4,12 +4,16 @@ const matchSchema = new Schema({
     groupId: {
         type: String,
     },
-    joingList: {
-        type: Array,
-    },
-    notJoingList: {
-        type: Array,
-    },
+    players: [{
+        playerId: {
+            type: String,
+            required: true
+        },
+        participationStatus: {
+            type: String,
+            required: true
+        }
+    }],
     teamA: { // List of members' id in team A
         type: Array,
     },

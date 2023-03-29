@@ -1,29 +1,43 @@
 import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 
 const userSchema = new Schema({
   firstName: {
     type: String,
     required: true,
+    trim: true,
   },
   lastName: {
     type: String,
     required: true,
+    trim: true,
   },
   email: {
     type: String,
     unique: true,
-    required: 'Your email is required',
+    trim: true,
+    required: true,
   },
   password: {
     type: String,
     require: true,
+    trim: true,
   },
   phone: {
     type: String,
     unique: true,
     required: 'Your phone number is required',
+    trim: true,
+  },
+  registerMethod: {
+    type: String,
+    require: true,
+    trim: true,
+    enum: ['email', 'facebook', 'google'],
+  },
+  facebookId: {
+    type: String,
+    trim: true,
   },
   dateOfBirth: {
     type: String,
@@ -44,14 +58,10 @@ const userSchema = new Schema({
   emergencyContact: {
     type: String,
   },
-  status: {
+  isActive: {
     type: String,
-  },
-  verifiedPhone: {
-    type: Boolean,
-  },
-  verifiedEmail: {
-    type: Boolean,
+    default: false,
+    required: true,
   },
   lastLoginDate: {
     type: String,
@@ -63,21 +73,6 @@ const userSchema = new Schema({
 
 userSchema.methods.comparePassword = function (password) {
   return bcrypt.compareSync(password, this.password);
-};
-
-userSchema.methods.generateJWT = function (NumberOfDays, key) {
-  const today = new Date();
-  const expirationDate = new Date(today);
-  expirationDate.setDate(today.getDate() + NumberOfDays); // Expires after NumberOfDays
-
-  let payload = {
-      id: this._id,
-      email: this.email,
-  };
-
-  return jwt.sign(payload, key, {
-      expiresIn: parseInt(expirationDate.getTime() / 1000, 10)
-  });
 };
 
 export default mongoose.model('User', userSchema);

@@ -2,7 +2,7 @@ import { errorMessage } from '../../config/config.js';
 import Match from '../../models/match/Match.js';
 import { object, string } from 'yup';
 
-let matchSchema = object({
+const matchSchema = object({
     title: string().required('Title required.'),
     location: string().required('Location is required.'),
     pictureUrl: string(),
@@ -26,37 +26,38 @@ let matchSchema = object({
 });
 
 export const createMatch = async (req,res) => {
+  const { updateBody } = req.body;
   try {
-    await matchSchema.validate(req.body);
-    let alreadyExist = await Match.findOne({email: req.body.email});
-    if (alreadyExist) return res.status(400).send({error:'Match already exists.'});
+    await matchSchema.validate(updateBody);
+    let alreadyExist = await Match.findOne({title: updateBody.title});
+    if (alreadyExist) return res.status(400).send({error:'Match with that title already exists.'});
     await Match.create({
-        groupId: req.body.groupId,
-        joingList: [],
-        notJoingList: [],
+        groupId: updateBody.groupId,
+        players: [],
         teamA: [],
         teamB: [],
-        title: req.body.title,
-        location: req.body.location,
-        pictureUrl: req.body.pictureUrl,
-        type: req.body.type,
-        date: req.body.date,
-        meetTime: req.body.meetTime,
-        kickOff: req.body.kickOff,
-        duration: req.body.duration,
-        shift: req.body.shift,
-        pitchNo: req.body.pitchNo,
-        teamAColor: req.body.teamAColor,
-        teamBColor: req.body.teamBColor,
-        turf: req.body.turf,
-        boots: req.body.boots,
-        condition: req.body.condition,
-        cost: req.body.cost,
-        recurring: req.body.recurring,
-        status: req.body.status,
-        amountCollected: req.body.amountCollected,
-        referee: req.body.referee,
+        title: updateBody.title,
+        location: updateBody.location,
+        pictureUrl: updateBody.pictureUrl,
+        type: updateBody.type,
+        date: updateBody.date,
+        meetTime: updateBody.meetTime,
+        kickOff: updateBody.kickOff,
+        duration: updateBody.duration,
+        shift: updateBody.shift,
+        pitchNo: updateBody.pitchNo,
+        teamAColor: updateBody.teamAColor,
+        teamBColor: updateBody.teamBColor,
+        turf: updateBody.turf,
+        boots: updateBody.boots,
+        condition: updateBody.condition,
+        cost: updateBody.cost,
+        recurring: updateBody.recurring,
+        status: updateBody.status,
+        amountCollected: updateBody.amountCollected,
+        referee: updateBody.referee,
       });
+      // push every group member and admin in the player's array as an object with player id and status
       res.status(201).send({message:'Match created.'});
   } catch (error) {
         errorMessage(res,error);
