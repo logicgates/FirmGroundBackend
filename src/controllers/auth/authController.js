@@ -44,6 +44,13 @@ const verifyUserRegisterationSchema = object({
   code: string().required('Email is required'),
 });
 
+const socialRegisterSchema = object({
+  firstName: string().required('First Name is required'),
+  lastName: string().required('Last Name is required'),
+  registerMethod: string()?.required('Please tell me about the registration method.'),
+  profileImage: string(),
+});
+
 export const register = async (req, res) => {
   try {
     await registerSchema.validate(req.body);
@@ -364,12 +371,12 @@ export const socialAccountLogin = async (req, res) => {
       req.session.userInfo = sessionUser;
       accessToken = await jwt.sign(
         { user: sessionUser },
-        process.env.HASH_ACCESS_KEY,
+        process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: '1d', algorithm: 'HS512' }
       );
       refreshToken = await jwt.sign(
         { user: sessionUser },
-        process.env.HASH_SECRET_KEY,
+        process.env.REFRESH_TOKEN_SECRET,
         { expiresIn: '30d', algorithm: 'HS512' }
       );
     } else {

@@ -7,7 +7,8 @@ import {
     resetPassword, 
     verifyForgotCode, 
     generateRefreshToken,
-    verifyUserRegisteration, 
+    verifyUserRegisteration,
+    socialAccountLogin 
 } from '../../controllers/auth/authController.js';
 
 const router = express.Router();
@@ -19,6 +20,8 @@ router.get('/users', getAllUsers)
 router.post('/login', login)
 
 router.post('/register', register);
+
+router.post('/social-login', socialAccountLogin);
 
 router.post('/verify-user/:token', verifyUserRegisteration);
 
