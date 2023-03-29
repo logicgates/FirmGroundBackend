@@ -79,6 +79,9 @@ const matchSchema = new Schema({
     },
     referee: {
         type: Boolean,
+    },
+    creationDate: {
+        type: String,
     }
 })
 

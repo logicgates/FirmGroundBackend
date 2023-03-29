@@ -14,30 +14,19 @@ import {
 
 const router = express.Router();
 
-router.get('/user/:userId', getUser)
+router.get('/user/:userId', getUser);
+router.get('/users', getAllUsers);
+router.patch('/update/:userId', updateUser);
+router.delete('/delete/:userId', deleteUser);
 
-router.get('/users', getAllUsers)
-
-router.post('/login', login)
-
+router.post('/login', login);
 router.post('/register', register);
-
 router.post('/social-login', socialAccountLogin);
-
 router.post('/verify-user/:token', verifyUserRegisteration);
-
-router.patch('/update/:userId', updateUser)
-
 router.post('/forgot-password', forgotPassword);
-
 router.post('/verify-code', verifyForgotCode);
-
 router.post('/resend-verify-code', resendVerifyForgotCode);
-
 router.get('/refresh-token/:refreshToken', generateRefreshToken);
-
 router.patch('/reset-password/:userId', resetPassword);
-
-router.delete('/delete/:userId', deleteUser)
 
 export default router;

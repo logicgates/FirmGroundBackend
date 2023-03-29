@@ -1,6 +1,7 @@
 import { errorMessage } from '../../config/config.js';
 import Match from '../../models/match/Match.js';
 import { object, string } from 'yup';
+import Chat from '../../models/chat/Chat.js';
 
 const matchSchema = object({
     title: string().required('Title required.'),
@@ -26,48 +27,37 @@ const matchSchema = object({
 });
 
 export const createMatch = async (req,res) => {
+  const { chatId } = req.params;
   const { updateBody } = req.body;
   try {
     await matchSchema.validate(updateBody);
+    const chatGroup = await Chat.findById(chatId);
+    if (!chatGroup) return res.status(404).send({error:'No chat group found with that id.'});
     let alreadyExist = await Match.findOne({title: updateBody.title});
     if (alreadyExist) return res.status(400).send({error:'Match with that title already exists.'});
-    await Match.create({
-        groupId: updateBody.groupId,
+    let currentDate = new Date();
+    const match = await Match.create({
+        ...updateBody,
+        groupId: chatId,
         players: [],
         teamA: [],
         teamB: [],
-        title: updateBody.title,
-        location: updateBody.location,
-        pictureUrl: updateBody.pictureUrl,
-        type: updateBody.type,
-        date: updateBody.date,
-        meetTime: updateBody.meetTime,
-        kickOff: updateBody.kickOff,
-        duration: updateBody.duration,
-        shift: updateBody.shift,
-        pitchNo: updateBody.pitchNo,
-        teamAColor: updateBody.teamAColor,
-        teamBColor: updateBody.teamBColor,
-        turf: updateBody.turf,
-        boots: updateBody.boots,
-        condition: updateBody.condition,
-        cost: updateBody.cost,
-        recurring: updateBody.recurring,
-        status: updateBody.status,
-        amountCollected: updateBody.amountCollected,
-        referee: updateBody.referee,
+        creationDate: currentDate
       });
       // push every group member and admin in the player's array as an object with player id and status
-      res.status(201).send({message:'Match created.'});
+      chatGroup.admins.forEach((member) => { match.players.push({playerId: member._id, participationStatus: 'pending'}); });
+      chatGroup.membersList.forEach((member) => { match.players.push({playerId: member._id, participationStatus: 'pending'}); });
+      match.save();
+      res.status(201).send({match, message:'Match created.'});
   } catch (error) {
         errorMessage(res,error);
   }
 }
 
 export const getMatches = async (req,res) => {
-  const { groupId } = req.body;
+  const { chatId } = req.body;
   try {
-    const groupMatches = await Match.find({groupId}); // Find all matches for that group chat
+    const groupMatches = await Match.find({chatId}); // Find all matches for that chat group
     if (!groupMatches) return res.status(404).send({ error: 'No matches found.' });
     res.status(200).send({ groupMatches });
   } catch (error) {
@@ -80,6 +70,7 @@ export const deleteMatch = async (req,res) => {
   try {
     const match = await Match.findById(matchId);
     if(!match) return res.status(404).send({error: 'Match does not exist.'});
+    const chatGroup = await Chat.findOne(match.groupId);
     await Match.deleteOne({_id: matchId});
     res.status(201).send({message: 'Match has been removed.'});
   } catch (error) {
