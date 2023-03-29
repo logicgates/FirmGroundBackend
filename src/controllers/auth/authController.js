@@ -1,5 +1,6 @@
 import { errorMessage, generateRandomString } from '../../config/config.js';
 import bcrypt from 'bcryptjs';
+import axios from 'axios';
 import User from '../../models/user/User.js';
 import UserVerification from '../../models/UserVerification/UserVerification.js';
 import { object, string } from 'yup';
