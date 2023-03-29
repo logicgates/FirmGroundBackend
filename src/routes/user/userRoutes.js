@@ -1,6 +1,14 @@
 import express from 'express';
 import { getUser, getAllUsers, deleteUser, updateUser } from '../../controllers/user/userController.js';
-import { register, login, forgotPassword, resetPassword, verifyForgotCode, generateRefreshToken } from '../../controllers/auth/authController.js';
+import { 
+    register, 
+    login, 
+    forgotPassword, 
+    resetPassword, 
+    verifyForgotCode, 
+    generateRefreshToken,
+    verifyUserRegisteration, 
+} from '../../controllers/auth/authController.js';
 
 const router = express.Router();
 
@@ -11,6 +19,8 @@ router.get('/users', getAllUsers)
 router.post('/login', login)
 
 router.post('/register', register);
+
+router.post('/verify-user/:token', verifyUserRegisteration);
 
 router.patch('/update/:userId', updateUser)
 

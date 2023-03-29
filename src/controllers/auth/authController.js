@@ -31,13 +31,17 @@ const changePasswordSchema = object({
 
 const resendVerifySchema = object({
   email: string().email().required('Email is required.'),
-})
+});
 
 const verifyCodeSchema = object({
   email: string().required('Email is required.').email('Please enter valid email'),
   userId: string().required('User id is required.'),
   code: string().required('Code is required.'),
   codeHash: string().required('Code hash is required.'),
+});
+
+const verifyUserRegisterationSchema = object({
+  code: string().required('Email is required'),
 });
 
 export const register = async (req, res) => {
@@ -121,7 +125,7 @@ export const login = async (req, res) => {
     res.status(200).send({
       accessToken, 
       refreshToken,
-      user});
+      user: { ...user?._doc, lastLoginAt: currentLoginDate, isActive: true },});
   } catch (error) {
     errorMessage(res,error);
   }
@@ -199,7 +203,7 @@ export const verifyForgotCode = async (req, res) => {
       {
         userId: req.body?.userId,
       },
-      process.env.HASH_ACCESS_KEY,
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: '1h' }
     );
     res.status(200).send({
@@ -278,7 +282,7 @@ export const verifyUserRegisteration = async (req, res) => {
     await verifyUserRegisterationSchema.validate(req.body);
     const { userId, code, email } = await jwt.verify(
       token,
-      process.env.HASH_ACCESS_KEY
+      process.env.ACCESS_TOKEN_SECRET
     );
     if (code !== req.body?.code)
       return res.status(400).send({
@@ -291,18 +295,17 @@ export const verifyUserRegisteration = async (req, res) => {
       });
     if (user?._doc?.isActive)
       return res.status(400).send({
-        message: 'Your account already verified.',
+        message: 'Your account is already verified.',
       });
     const sessionUser = { userId: user?._id, email: user?.email };
-    req.session.userInfo = sessionUser;
     const accessToken = await jwt.sign(
       { user: sessionUser },
-      process.env.HASH_ACCESS_KEY,
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: '7d', algorithm: 'HS512' }
     );
     const refreshToken = await jwt.sign(
       { user: sessionUser },
-      process.env.HASH_SECRET_KEY,
+      process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: '30d', algorithm: 'HS512' }
     );
     await User.findByIdAndUpdate(user?._id, {
@@ -311,6 +314,107 @@ export const verifyUserRegisteration = async (req, res) => {
     });
     res.status(200).send({
       user: { ...user?._doc, lastLoginAt: currentLoginDate, isActive: true },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const socialAccountLogin = async (req, res) => {
+  try {
+    const currentLoginDate = new Date();
+    await socialRegisterSchema.validate(req.body);
+    let user;
+    if (req.body.registerMethod === 'facebook' && !req.body?.email) {
+      if (!req.body?.facebookId)
+        return res.status(400).send({ error: 'Facebook user id is required.' });
+      user = await User.findOne({
+        facebookId: req.body?.facebookId,
+      });
+      if (!user && !req.body?.email)
+        return res.status(400).send({
+          error: 'Email is required.',
+          emailRequired: true,
+          firstName: req.body?.firstName,
+          lastName: req.body?.lastName,
+          facebookId: req.body?.facebookId,
+          profileImage: req.body?.profileImage,
+        });
+    } else {
+      if (!req.body?.email)
+        return res.status(400).send({ error: 'Email is required.' });
+      user = await User.findOne({
+        email: req.body?.email,
+      });
+      if (req.body.registerMethod === 'facebook' && req.body?.facebookId)
+        user = await User.findByIdAndUpdate(user?._doc?._id, {
+          facebookId: req.body?.facebookId,
+        });
+    }
+    let accessToken;
+    let refreshToken;
+    if (user) {
+      const sessionUser = {
+        userId: user?.id,
+        email: user?.email,
+        registerMethod: user?.registerMethod,
+      };
+      req.session.userInfo = sessionUser;
+      accessToken = await jwt.sign(
+        { user: sessionUser },
+        process.env.HASH_ACCESS_KEY,
+        { expiresIn: '1d', algorithm: 'HS512' }
+      );
+      refreshToken = await jwt.sign(
+        { user: sessionUser },
+        process.env.HASH_SECRET_KEY,
+        { expiresIn: '30d', algorithm: 'HS512' }
+      );
+    } else {
+      const fileName = crypto.randomBytes(32).toString('hex');
+      const response = await axios.get(req.body?.profileImage, {
+        responseType: 'arraybuffer',
+      });
+      const buffer = Buffer.from(response.data, 'utf-8');
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: `profile/${fileName}`,
+        Body: buffer,
+      });
+      s3Client.send(command);
+      user = await User.create({
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.email,
+        profileImage: `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}`,
+        registerMethod: req.body?.registerMethod,
+        lastLoginAt: currentLoginDate,
+      });
+      if (!user)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+      user.profileImage = req.body?.profileImage;
+      const sessionUser = {
+        userId: user?._id,
+        email: user?.email,
+      };
+      req.session.userInfo = sessionUser;
+      accessToken = await jwt.sign(
+        { user: sessionUser },
+        process.env.HASH_ACCESS_KEY,
+        { expiresIn: '1d', algorithm: 'HS512' }
+      );
+      refreshToken = await jwt.sign(
+        { user: sessionUser },
+        process.env.HASH_SECRET_KEY,
+        { expiresIn: '30d', algorithm: 'HS512' }
+      );
+    }
+    res.status(200).send({
+      user: { ...user?._doc, deleted: null },
       accessToken,
       refreshToken,
     });
