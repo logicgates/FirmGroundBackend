@@ -368,7 +368,6 @@ export const socialAccountLogin = async (req, res) => {
         email: user?.email,
         registerMethod: user?.registerMethod,
       };
-      req.session.userInfo = sessionUser;
       accessToken = await jwt.sign(
         { user: sessionUser },
         process.env.ACCESS_TOKEN_SECRET,
@@ -408,15 +407,14 @@ export const socialAccountLogin = async (req, res) => {
         userId: user?._id,
         email: user?.email,
       };
-      req.session.userInfo = sessionUser;
       accessToken = await jwt.sign(
         { user: sessionUser },
-        process.env.HASH_ACCESS_KEY,
+        process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: '1d', algorithm: 'HS512' }
       );
       refreshToken = await jwt.sign(
         { user: sessionUser },
-        process.env.HASH_SECRET_KEY,
+        process.env.REFRESH_TOKEN_SECRET,
         { expiresIn: '30d', algorithm: 'HS512' }
       );
     }
