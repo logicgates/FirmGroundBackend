@@ -5,6 +5,7 @@ import path, { dirname } from 'path';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
+import session from 'express-session';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import routes from './src/routes/index.js';

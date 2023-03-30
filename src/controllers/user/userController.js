@@ -1,5 +1,4 @@
-import { errorMessage, generateRandomString  } from '../../config/config.js';
-import bcrypt from 'bcryptjs';
+import { errorMessage  } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import { object, string } from 'yup';
 
@@ -14,8 +13,18 @@ const updateUserSchema = object({
   city: string()
 });
 
+const changePasswordSchema = object({
+  oldPassword: string().required('Old password is required'),
+  password: string().min(8).max(32).required('Password is required'),
+});
+
 export const getUser = async (req, res) => {
   const { userId } = req.params;
+  const userInfo = req.userInfo;
+  if (userId !== userInfo?.userId)
+    return res
+      .status(401)
+      .send({ error: 'You are not authorized for this request.' });
   try {
     const user = await User.findById(userId);
     if (!user) return res.status(404).send({ error: 'User not found.' });
@@ -23,7 +32,7 @@ export const getUser = async (req, res) => {
   } catch (error) {
     errorMessage(res,error);
   }
-}
+};
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -32,16 +41,19 @@ export const getAllUsers = async (req, res) => {
   } catch (error) {
     errorMessage(res,error);
   }
-}
+};
 
 export const updateUser = async (req, res) => {
   const { userId } = req.params;
+  const userInfo = req.userInfo;
+  if (userId !== userInfo?.userId)
+    return res
+      .status(401)
+      .send({ error: 'You are not authorized for this request.' });
   try {
     let updateBody = req.body;
     await updateUserSchema.validate(req.body);
-    const user = await User.findById(userId);
-    if(!user) return res.status(404).send({error: 'User does not exist.'});
-    await User.updateOne(
+    const user = await User.updateOne(
       { _id: userId },
       { $set: {
         name: updateBody.name,
@@ -53,20 +65,71 @@ export const updateUser = async (req, res) => {
       }
     }, { new: true }
   );
-  res.status(201).send({user: user, message:'User has been updated.'});
+  if (!user)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+  res.status(201).send({ user: user, message:'User has been updated.' });
+  } catch (error) {
+    errorMessage(res,error);
+  }
+};
+
+export const changePassword = async (req,res) => {
+  const { userId } = req.params;
+  const userInfo = req.userInfo;
+  if (userId !== userInfo?.userId)
+    return res
+      .status(401)
+      .send({ error: 'You are not authorized for this request.' });
+  try {
+    await changePasswordSchema.validate(req.body);
+    const { password, oldPassword } = req.body;
+    const user = User.findById(userId);
+    if (!user) return res.status(404).send({ error: 'User not found.' });
+    const checkPassword = await bcrypt.compare(oldPassword, user?.password);
+    if (!checkPassword)
+      return res
+        .status(400)
+        .send({ error: 'Old password must need to be valid.' });
+    if (password === oldPassword)
+      return res.status(400).send({
+        error: 'New password must be different from the old password.',
+      });
+    const salt = await bcrypt.genSalt(9);
+    const hashPassword = await bcrypt.hash(password, salt);
+    const updateUser = await User.findByIdAndUpdate(userId, {password: hashPassword});
+    if (!updatedUser)
+      return res
+        .status(500)
+        .send({ error: 'Something went wrong please try again later.' });
+    res.status(200).send({ message: 'Your password has been updated.' });
   } catch (error) {
     errorMessage(res,error);
   }
 }
 
 export const deleteUser = async (req, res) => {
-  const { userId } = req.params;
+  const user = req.userInfo;
   try {
-    const user = await User.findById(userId);
-    if(!user) return res.status(404).send({error: 'User does not exist.'});
-    await User.deleteOne({_id: userId});
-    res.status(201).send({message: 'User has been deleted.'});
+    const checkProfile = await User.findById(user?.userId);
+    if (!checkProfile)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    if (checkProfile?._doc?.deleted?.isDeleted)
+      return res
+        .status(400)
+        .send({ error: 'Your profile has already been deleted.' })
+    const deleteProfile = await User.findByIdAndUpdate(user?.userId, {
+      deleted: { isDeleted: true, date: new Date() },
+    });
+    if (!deleteProfile)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    res.status(410).send({ message: 'Your profile has been deleted.' });
   } catch (error) {
     errorMessage(res,error);
   }
-}
+};
