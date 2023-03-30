@@ -61,7 +61,7 @@ export const register = async (req, res) => {
   try {
     await registerSchema.validate(req.body);
     let alreadyExist = await User.findOne({email: req.body.email});
-    if (alreadyExist) return res.status(400).send({error:'User already exists.'});
+    if (alreadyExist) return res.status(200).send({ error:'User already exists.' });
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(req.body.password, salt);
     let currentLoginDate = new Date();
@@ -125,7 +125,6 @@ export const login = async (req, res) => {
     if (!user.comparePassword(req.body?.password)) return res.status(401).send({error: 'Password incorrect'})
     let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
     const sessionUser = { userId: user?._id, email: user?.email };
-    req.session.userInfo = sessionUser;
     const accessToken = await jwt.sign(
       { user: sessionUser },
       process.env.ACCESS_TOKEN_SECRET,
@@ -277,7 +276,7 @@ export const verifyForgotCode = async (req, res) => {
     errorMessage(res, error);
   }
 };
-
+  
 export const resetPassword = async (req, res) => {
   const { token } = req.params;
   if (!token) return res.status(401).send({ error: 'Token is not valid.' });
@@ -287,7 +286,9 @@ export const resetPassword = async (req, res) => {
     if (!userId) return res.status(401).send({ error: 'Token is not valid.' });
     const salt = await bcrypt.genSalt(5);
     const password = await bcrypt.hash(req.body?.password, salt);
-    const updatedUser = await User.findByIdAndUpdate(userId, {password: password});
+    const updatedUser = await User.findByIdAndUpdate(userId, {
+      password: password,
+    });
     if (!updatedUser)
       return res
         .status(500)
@@ -375,7 +376,6 @@ export const socialAccountLogin = async (req, res) => {
         email: user?.email,
         registerMethod: user?.registerMethod,
       };
-      req.session.userInfo = sessionUser;
       accessToken = await jwt.sign(
         { user: sessionUser },
         process.env.ACCESS_TOKEN_SECRET,
@@ -415,7 +415,6 @@ export const socialAccountLogin = async (req, res) => {
         userId: user?._id,
         email: user?.email,
       };
-      req.session.userInfo = sessionUser;
       accessToken = await jwt.sign(
         { user: sessionUser },
         process.env.ACCESS_TOKEN_SECRET,

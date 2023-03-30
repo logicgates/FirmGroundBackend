@@ -2,12 +2,15 @@ import mongoose, { Schema } from 'mongoose';
 
 const matchSchema = new Schema({
     groupId: {
-        type: String,
+        type: Schema.ObjectId,
+        required: true,
+        ref: 'Chat',
     },
     players: [{
         playerId: {
-            type: String,
-            required: true
+            type: Schema.ObjectId,
+            required: true,
+            ref: 'User',
         },
         participationStatus: {
             type: String,
@@ -22,15 +25,19 @@ const matchSchema = new Schema({
     },
     title: {
         type: String,
+        trim: true,
     },
     location: { // Stadium
         type: String,
+        trim: true,
     },
     pictureUrl: {
         type: String,
+        trim: true,
     },
     type: { // Type of match
         type: String,
+        trim: true,
     },
     date: {
         type: String,
@@ -46,39 +53,46 @@ const matchSchema = new Schema({
     },
     shift: {
         type: String,
+        trim: true,
     },
-    pitchNo: {
+    pitchNumber: {
         type: String,
+        trim: true,
     },
     teamAColor: {
         type: String,
+        trim: true,
     },
     teamBColor: {
         type: String,
-    },
-    turf: {
-        type: String,
-    },
-    boots: {
-        type: String,
-    },
-    condition: {
-        type: String,
-    },
-    cost: {
-        type: Number,
-    },
-    recurring: {
-        type: String,
-    },
-    status: {
-        type: String,
-    },
-    amountCollected: {
-        type: Number,
+        trim: true,
     },
     referee: {
         type: Boolean,
+    },
+    turf: {
+        type: String,
+        trim: true,
+    },
+    boots: {
+        type: String,
+        trim: true,
+    },
+    condition: {
+        type: String,
+        trim: true,
+    },
+    cost: {
+        type: Number,
+        trim: true,
+    },
+    costPerPerson: {
+        type: Number,
+        trim: true,
+    },
+    recurring: {
+        type: String,
+        trim: true,
     },
     creationDate: {
         type: String,

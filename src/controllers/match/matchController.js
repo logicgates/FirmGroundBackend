@@ -1,12 +1,12 @@
 import { errorMessage } from '../../config/config.js';
 import Match from '../../models/match/Match.js';
-import { object, string } from 'yup';
+import { object, string, number } from 'yup';
 import Chat from '../../models/chat/ChatModel.js';
 
 const matchSchema = object({
   title: string().required('Title required.'),
   location: string().required('Location is required.'),
-  pictureUrl: string(),
+  pictureUrl: string().url().nullable(),
   type: string().required('Type of match is required.'),
   date: string().required('Date of match is required.'),
   meetTime: string().required('Time to meet is required.'),
@@ -19,11 +19,9 @@ const matchSchema = object({
   turf: string(),
   boots: string(),
   condition: string(),
-  cost: string().required('Cost of match required.'),
+  cost: number().positive().integer(),
+  costPerPerson: number().positive().integer(),
   recurring: string(),
-  status: string(),
-  amountCollected: string(),
-  referee: string(),
 });
 
 export const createMatch = async (req, res) => {
@@ -37,7 +35,11 @@ export const createMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'No chat group found with that id.' });
-    //let isAdmin = await
+    let isAdmin = chatGroup.admins.includes(userInfo?.userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins are allowed to create a match.' });
     let alreadyExist = await Match.findOne({ title: updateBody.title });
     if (alreadyExist)
       return res
@@ -45,11 +47,11 @@ export const createMatch = async (req, res) => {
         .send({ error: 'Match with that title already exists.' });
     let currentDate = new Date();
     const match = await Match.create({
-      ...updateBody,
       groupId: chatId,
       players: [],
       teamA: [],
       teamB: [],
+      ...updateBody,
       creationDate: currentDate,
     });
     // push every group member and admin in the player's array as an object with player id and status
@@ -66,7 +68,7 @@ export const createMatch = async (req, res) => {
       });
     });
     match.save();
-    res.status(201).send({ match, message: 'Match created.' });
+    res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
     errorMessage(res, error);
   }

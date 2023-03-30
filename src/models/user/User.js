@@ -48,15 +48,19 @@ const userSchema = new Schema({
   },
   countryCode: {
     type: String,
+    trim: true,
   },
   city: {
     type: String,
+    trim: true,
   },
   emergencyName: {
     type: String,
+    trim: true,
   },
   emergencyContact: {
     type: String,
+    trim: true,
   },
   isActive: {
     type: Boolean,
@@ -68,6 +72,7 @@ const userSchema = new Schema({
   },
   pictureUrl: {
     type: String,
+    trim: true,
   }
 });
 
