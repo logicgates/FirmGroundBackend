@@ -1,23 +1,26 @@
 import mongoose, { Schema } from 'mongoose';
 
-const chatSchema = new Schema({
+const chatSchema = new Schema(
+  {
     title: {
-        type: String,
+      type: String,
     },
     admins: {
-        type: Array,
-        required: true
+      type: Array,
+      required: true,
     },
     membersList: {
-        type: Array,
-        required: true
+      type: Array,
+      required: true,
     },
     creationDate: {
-        type: String,
+      type: String,
     },
     isPrivate: {
-        type: Boolean,
-    }
-})
+      type: Boolean,
+    },
+  },
+  { timestamps: true }
+);
 
 export default mongoose.model('Chat', chatSchema);
