@@ -277,7 +277,7 @@ export const verifyForgotCode = async (req, res) => {
     errorMessage(res, error);
   }
 };
-  
+
 export const resetPassword = async (req, res) => {
   const { token } = req.params;
   if (!token) return res.status(401).send({ error: 'Token is not valid.' });

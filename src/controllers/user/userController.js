@@ -34,15 +34,6 @@ export const getUser = async (req, res) => {
   }
 };
 
-export const getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find();
-    res.status(200).send(users);
-  } catch (error) {
-    errorMessage(res,error);
-  }
-};
-
 export const updateUser = async (req, res) => {
   const { userId } = req.params;
   const userInfo = req.userInfo;
