@@ -29,12 +29,20 @@ const matchSchema = object({
 export const createMatch = async (req,res) => {
   const { chatId } = req.params;
   const { updateBody } = req.body;
+  const userInfo = req.userInfo;
   try {
     await matchSchema.validate(updateBody);
     const chatGroup = await Chat.findById(chatId);
-    if (!chatGroup) return res.status(404).send({error:'No chat group found with that id.'});
+    if (!chatGroup)
+      return res
+        .status(404)
+        .send({error:'No chat group found with that id.'});
+    //let isAdmin = await 
     let alreadyExist = await Match.findOne({title: updateBody.title});
-    if (alreadyExist) return res.status(400).send({error:'Match with that title already exists.'});
+    if (alreadyExist)
+      return res
+        .status(400)
+        .send({error:'Match with that title already exists.'});
     let currentDate = new Date();
     const match = await Match.create({
         ...updateBody,

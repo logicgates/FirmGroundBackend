@@ -5,6 +5,7 @@ import path, { dirname } from 'path';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
+import session from 'express-session';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import routes from './src/routes/index.js';
@@ -18,6 +19,16 @@ const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors());
+
+//Session
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    saveUninitialized: true,
+    cookie: { maxAge: 1000 * 60 * 60 * 24 },
+    resave: true,
+  })
+);
 
 //Routes
 app.get('/', (req, res) => res.send('<h1>Server Running</h1>'));

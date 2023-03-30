@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUser, getAllUsers, deleteUser, updateUser } from '../../controllers/user/userController.js';
+import { getUser, deleteUser, updateUser, changePassword } from '../../controllers/user/userController.js';
 import { 
     register, 
     login, 
@@ -15,7 +15,7 @@ import {
 const router = express.Router();
 
 router.get('/user/:userId', getUser);
-router.get('/users', getAllUsers);
+router.post('/change-password/:userId', changePassword);
 router.patch('/update/:userId', updateUser);
 router.delete('/delete/:userId', deleteUser);
 
@@ -27,6 +27,6 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify-code', verifyForgotCode);
 router.post('/resend-verify-code', resendVerifyForgotCode);
 router.get('/refresh-token/:refreshToken', generateRefreshToken);
-router.patch('/reset-password/:userId', resetPassword);
+router.patch('/reset-password/:token', resetPassword);
 
 export default router;
