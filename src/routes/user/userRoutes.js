@@ -1,15 +1,20 @@
 import express from 'express';
-import { getUser, deleteUser, updateUser, changePassword } from '../../controllers/user/userController.js';
-import { 
-    register, 
-    login, 
-    forgotPassword, 
-    resetPassword, 
-    verifyForgotCode, 
-    generateRefreshToken,
-    verifyUserRegisteration,
-    socialAccountLogin,
-    resendVerifyForgotCode
+import {
+  getUser,
+  deleteUser,
+  updateUser,
+  changePassword,
+} from '../../controllers/user/userController.js';
+import {
+  register,
+  login,
+  forgotPassword,
+  resetPassword,
+  verifyForgotCode,
+  generateRefreshToken,
+  verifyUserRegisteration,
+  socialAccountLogin,
+  resendVerifyForgotCode,
 } from '../../controllers/auth/authController.js';
 
 const router = express.Router();
