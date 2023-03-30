@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUser, getAllUsers, deleteUser, updateUser, changePassword } from '../../controllers/user/userController.js';
+import { getUser, deleteUser, updateUser, changePassword } from '../../controllers/user/userController.js';
 import { 
     register, 
     login, 
