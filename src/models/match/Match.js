@@ -1,13 +1,13 @@
 import mongoose, { Schema } from 'mongoose';
 
 const matchSchema = new Schema({
-    groupId: {
+    chatId: {
         type: Schema.ObjectId,
         required: true,
         ref: 'Chat',
     },
     players: [{
-        playerId: {
+        _id: {
             type: Schema.ObjectId,
             required: true,
             ref: 'User',

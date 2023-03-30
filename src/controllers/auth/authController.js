@@ -125,6 +125,7 @@ export const login = async (req, res) => {
     if (!user.comparePassword(req.body?.password)) return res.status(401).send({error: 'Password incorrect'})
     let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
     const sessionUser = { userId: user?._id, email: user?.email };
+    req.session.userInfo = sessionUser;
     const accessToken = await jwt.sign(
       { user: sessionUser },
       process.env.ACCESS_TOKEN_SECRET,
@@ -376,6 +377,7 @@ export const socialAccountLogin = async (req, res) => {
         email: user?.email,
         registerMethod: user?.registerMethod,
       };
+      req.session.userInfo = sessionUser;
       accessToken = await jwt.sign(
         { user: sessionUser },
         process.env.ACCESS_TOKEN_SECRET,
@@ -415,6 +417,7 @@ export const socialAccountLogin = async (req, res) => {
         userId: user?._id,
         email: user?.email,
       };
+      req.session.userInfo = sessionUser;
       accessToken = await jwt.sign(
         { user: sessionUser },
         process.env.ACCESS_TOKEN_SECRET,

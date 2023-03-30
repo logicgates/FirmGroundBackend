@@ -20,7 +20,7 @@ const changePasswordSchema = object({
 
 export const getUser = async (req, res) => {
   const { userId } = req.params;
-  const userInfo = req.userInfo;
+  const userInfo = req.session.userInfo;
   if (userId !== userInfo?.userId)
     return res
       .status(401)
@@ -36,13 +36,13 @@ export const getUser = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   const { userId } = req.params;
-  const userInfo = req.userInfo;
+  const updateBody = req.body;
+  const userInfo = req.session.userInfo;
   if (userId !== userInfo?.userId)
     return res
       .status(401)
       .send({ error: 'You are not authorized for this request.' });
   try {
-    let updateBody = req.body;
     await updateUserSchema.validate(req.body);
     const user = await User.updateOne(
       { _id: userId },
@@ -68,7 +68,7 @@ export const updateUser = async (req, res) => {
 
 export const changePassword = async (req,res) => {
   const { userId } = req.params;
-  const userInfo = req.userInfo;
+  const userInfo = req.session.userInfo;
   if (userId !== userInfo?.userId)
     return res
       .status(401)
@@ -90,7 +90,7 @@ export const changePassword = async (req,res) => {
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(password, salt);
     const updateUser = await User.findByIdAndUpdate(userId, {password: hashPassword});
-    if (!updatedUser)
+    if (!updateUser)
       return res
         .status(500)
         .send({ error: 'Something went wrong please try again later.' });
@@ -101,7 +101,7 @@ export const changePassword = async (req,res) => {
 }
 
 export const deleteUser = async (req, res) => {
-  const user = req.userInfo;
+  const user = req.session.userInfo;
   try {
     const checkProfile = await User.findById(user?.userId);
     if (!checkProfile)
