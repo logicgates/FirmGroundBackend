@@ -173,6 +173,21 @@ export const updateMatch = async (req, res) => {
   }
 };
 
+export const updateParticiationStatus = async (req,res) => {
+  const { matchId } = req.params;
+  const updateBody = req.body;
+  const userInfo = req.session.userInfo;
+  try {
+  let checkMatchExists = await Match.findById(matchId);
+  if (!checkMatchExists)
+    return res
+      .status(404)
+      .send({ error: 'Match for chat group was not found.' });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+}
+
 export const deleteMatch = async (req, res) => {
   const { matchId } = req.params;
   const updateBody = req.body;

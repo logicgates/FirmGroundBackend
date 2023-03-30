@@ -8,9 +8,9 @@ import {
 import {
   register,
   login,
-  forgotPassword,
+  sendForgotCode,
   resetPassword,
-  verifyForgotCode,
+  verifyOtpCode,
   generateRefreshToken,
   verifyUserRegisteration,
   socialAccountLogin,
@@ -28,9 +28,9 @@ router.post('/login', login);
 router.post('/register', register);
 router.post('/social-login', socialAccountLogin);
 router.post('/verify-user/:token', verifyUserRegisteration);
-router.post('/forgot-password', forgotPassword);
-router.post('/verify-code', verifyForgotCode);
+router.post('/forgot-password', sendForgotCode);
 router.post('/resend-verify-code', resendVerifyForgotCode);
+router.post('/verify-code', verifyOtpCode);
 router.get('/refresh-token/:refreshToken', generateRefreshToken);
 router.patch('/reset-password/:token', resetPassword);
 

@@ -57,6 +57,35 @@ const socialRegisterSchema = object({
   profileImage: string(),
 });
 
+export const login = async (req, res) => {
+  try {
+    await loginSchema.validate(req.body);
+    const user = await User.findOne({email: req.body?.email});
+    if (!user) return res.status(404).send({error: 'No account with that email address'});
+    if (!user.comparePassword(req.body?.password)) return res.status(401).send({error: 'Password incorrect'})
+    let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
+    const sessionUser = { userId: user?._id, email: user?.email };
+    req.session.userInfo = sessionUser;
+    const accessToken = await jwt.sign(
+      { user: sessionUser },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '7d', algorithm: 'HS512' }
+    );
+    const refreshToken = await jwt.sign(
+      { user: sessionUser },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: '30d', algorithm: 'HS512' }
+    );
+    User.findByIdAndUpdate(user?._id, { lastLoginDate: currentLoginDate });
+    res.status(200).send({
+      accessToken, 
+      refreshToken,
+      user: { ...user?._doc, lastLoginAt: currentLoginDate, isActive: true },});
+  } catch (error) {
+    errorMessage(res,error);
+  }
+};
+
 export const register = async (req, res) => {
   try {
     await registerSchema.validate(req.body);
@@ -117,35 +146,6 @@ export const register = async (req, res) => {
   }
 };
 
-export const login = async (req, res) => {
-  try {
-    await loginSchema.validate(req.body);
-    const user = await User.findOne({email: req.body?.email});
-    if (!user) return res.status(404).send({error: 'No account with that email address'});
-    if (!user.comparePassword(req.body?.password)) return res.status(401).send({error: 'Password incorrect'})
-    let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
-    const sessionUser = { userId: user?._id, email: user?.email };
-    req.session.userInfo = sessionUser;
-    const accessToken = await jwt.sign(
-      { user: sessionUser },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: '7d', algorithm: 'HS512' }
-    );
-    const refreshToken = await jwt.sign(
-      { user: sessionUser },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: '30d', algorithm: 'HS512' }
-    );
-    User.findByIdAndUpdate(user?._id, { lastLoginDate: currentLoginDate });
-    res.status(200).send({
-      accessToken, 
-      refreshToken,
-      user: { ...user?._doc, lastLoginAt: currentLoginDate, isActive: true },});
-  } catch (error) {
-    errorMessage(res,error);
-  }
-};
-
 export const verifyUserRegisteration = async (req, res) => {
   const { token } = req.params;
   try {
@@ -194,7 +194,7 @@ export const verifyUserRegisteration = async (req, res) => {
   }
 };
   
-export const forgotPassword = async (req, res) => {
+export const sendForgotCode = async (req, res) => {
   try {
     await resendVerifySchema.validate(req.body);
     let user = await User.findOne({email: req.body?.email});
@@ -243,7 +243,59 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-export const verifyForgotCode = async (req, res) => {
+export const resendVerifyForgotCode = async (req, res) => {
+  try {
+    await resendVerifySchema.validate(req.body);
+    const user = await User.findOne({ email: req.body?.email }).exec();
+    if (!user)
+      return res
+        .status(404)
+        .send({ error: 'User not exist against this email.' });
+    await UserVerification.deleteMany({ userId: user?._id });
+    let verificationCode = generateRandomString(6);
+    const salt = await bcrypt.genSalt(9);
+    const hashCode = await bcrypt.hash(verificationCode, salt);
+    const userVerification = await UserVerification.create({
+      code: hashCode,
+      userId: user?._id,
+      expireAt: Date.now() + 18000000, //Expire in 5 minutes
+    });
+    if (!userVerification)
+      return res
+        .status(500)
+        .send({ error: 'Something went wrong please try again later.' });
+    const msg = {
+      from: mailAddress,
+      template_id: process.env.SENDGRID_TEM_ID_FOR_FORGOT_PASSWORD,
+      personalizations: [
+        {
+          to: { email: `${user.email}` },
+          dynamic_template_data: {
+            subject: 'Forgot Password Email',
+            verification_code: `${verificationCode}`,
+          },
+        },
+      ],
+    };
+    sgMail
+      .send(msg)
+      .then(() => {
+        res.status(200).send({
+          message: 'Forgot Password Email is sent. Please check your email.',
+          userId: user?._id,
+          email: req.body?.email,
+          codeHash: hashCode,
+        });
+      })
+      .catch((error) => {
+        res.status(401).send({ error: error });
+      });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const verifyOtpCode = async (req, res) => {
   try {
     await verifyCodeSchema.validate(req.body);
     const userVerification = await UserVerification.findOne({
@@ -434,58 +486,6 @@ export const socialAccountLogin = async (req, res) => {
       accessToken,
       refreshToken,
     });
-  } catch (error) {
-    errorMessage(res, error);
-  }
-};
-
-export const resendVerifyForgotCode = async (req, res) => {
-  try {
-    await resendVerifySchema.validate(req.body);
-    const user = await User.findOne({ email: req.body?.email }).exec();
-    if (!user)
-      return res
-        .status(404)
-        .send({ error: 'User not exist against this email.' });
-    await UserVerification.deleteMany({ userId: user?._id });
-    let verificationCode = generateRandomString(6);
-    const salt = await bcrypt.genSalt(9);
-    const hashCode = await bcrypt.hash(verificationCode, salt);
-    const userVerification = await UserVerification.create({
-      code: hashCode,
-      userId: user?._id,
-      expireAt: Date.now() + 18000000, //Expire in 5 minutes
-    });
-    if (!userVerification)
-      return res
-        .status(500)
-        .send({ error: 'Something went wrong please try again later.' });
-    const msg = {
-      from: mailAddress,
-      template_id: process.env.SENDGRID_TEM_ID_FOR_FORGOT_PASSWORD,
-      personalizations: [
-        {
-          to: { email: `${user.email}` },
-          dynamic_template_data: {
-            subject: 'Forgot Password Email',
-            verification_code: `${verificationCode}`,
-          },
-        },
-      ],
-    };
-    sgMail
-      .send(msg)
-      .then(() => {
-        res.status(200).send({
-          message: 'Forgot Password Email is sent. Please check your email.',
-          userId: user?._id,
-          email: req.body?.email,
-          codeHash: hashCode,
-        });
-      })
-      .catch((error) => {
-        res.status(401).send({ error: error });
-      });
   } catch (error) {
     errorMessage(res, error);
   }
