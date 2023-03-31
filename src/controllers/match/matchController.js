@@ -139,9 +139,9 @@ export const updateMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update a match.' });
-  const match = await Match.updateOne(
-    { _id: matchId },
-    { $set: {
+  const match = await Match.findByIdAndUpdate(
+    matchId,
+    {
       title: updateBody.title,
       location: updateBody.location,
       pictureUrl: updateBody.pictureUrl,
@@ -160,8 +160,7 @@ export const updateMatch = async (req, res) => {
       cost: updateBody.cost,
       costPerPerson: updateBody.costPerPerson,
       recurring: updateBody.recurring,
-    }
-  }, { new: true }
+    }, { new: true }
 );
   if (!match)
       return res

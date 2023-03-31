@@ -27,10 +27,10 @@ router.delete('/delete/:userId', deleteUser);
 router.post('/login', login);
 router.post('/register', register);
 router.post('/social-login', socialAccountLogin);
-router.post('/verify-user/:token', verifyUserRegisteration);
+router.post('/verify-email/:token', verifyUserRegisteration);
 router.post('/forgot-password', sendForgotCode);
-router.post('/resend-verify-code', resendVerifyForgotCode);
 router.post('/verify-code', verifyOtpCode);
+router.post('/resend-verify-code', resendVerifyForgotCode);
 router.get('/refresh-token/:refreshToken', generateRefreshToken);
 router.patch('/reset-password/:token', resetPassword);
 
