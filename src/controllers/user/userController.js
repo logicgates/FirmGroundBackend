@@ -33,6 +33,19 @@ export const getUser = async (req, res) => {
   }
 };
 
+export const getUsersList = async (req, res) => {
+  const userInfo = req.session.userInfo;
+  try {
+    const users = await User.find({}, 
+      'firstName lastName phone pictureUrl');
+    const filteredUser = users.filter(user=> userInfo?.userId !== user._id);
+    if (!filteredUser) return res.status(404).send({ error: 'No users found.' });
+    res.status(200).send({ filteredUser });
+  } catch (error) {
+    errorMessage(res,error);
+  }
+};
+
 export const updateUser = async (req, res) => {
   const { userId } = req.params;
   const updateBody = req.body;
