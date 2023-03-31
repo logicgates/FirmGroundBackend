@@ -7,7 +7,6 @@ const updateUserSchema = object({
   lastName: string().required('Last name required.'),
   dateOfBirth: string().required('Date of Birth is required.'),
   countryCode: string(),
-  phone: string().required('Contact Number is required.'),
   emergencyName: string(),
   emergencyContact: string(),
   city: string()
@@ -44,7 +43,7 @@ export const updateUser = async (req, res) => {
       .send({ error: 'You are not authorized for this request.' });
   try {
     await updateUserSchema.validate(req.body);
-    const user = await User.updateOne(
+    const updateUser = await User.updateOne(
       { _id: userId },
       { $set: {
         name: updateBody.name,
@@ -56,10 +55,11 @@ export const updateUser = async (req, res) => {
       }
     }, { new: true }
   );
-  if (!user)
+  if (!updateUser)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+  const user = await User.findById(userId);
   res.status(201).send({ user: user, message:'User has been updated.' });
   } catch (error) {
     errorMessage(res,error);

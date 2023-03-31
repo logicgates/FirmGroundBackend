@@ -21,9 +21,9 @@ export const createChat = async (req, res) => {
     let today = new Date();
     let newChat = await Chat.create({
       title:
-        checkIfPrivate === true
-          ? privateUser.firstName + ' ' + privateUser.lastName
-          : req.body.title,
+        checkIfPrivate === true ? 
+          privateUser.firstName + ' ' + privateUser.lastName : 
+          req.body.title,
       admins: req.params.userId,
       membersList: [],
       creationDate: today,
