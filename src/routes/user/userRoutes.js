@@ -6,7 +6,7 @@ import {
   changePassword,
 } from '../../controllers/user/userController.js';
 import {
-  register,
+  registerAndSendCode,
   login,
   sendForgotCode,
   resetPassword,
@@ -26,7 +26,7 @@ router.patch('/update/:userId', updateUser);
 router.delete('/delete/:userId', deleteUser);
 
 router.post('/login', login);
-router.post('/register', register);
+router.post('/register', registerAndSendCode);
 router.post('/resend-register-code', resendRegisterCode);
 router.post('/social-login', socialAccountLogin);
 router.post('/verify-email/:token', verifyUserRegisteration);

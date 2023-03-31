@@ -86,7 +86,7 @@ export const login = async (req, res) => {
   }
 };
 
-export const register = async (req, res) => {
+export const registerAndSendCode = async (req, res) => {
   try {
     await registerSchema.validate(req.body);
     let alreadyExist = await User.findOne({email: req.body.email});
