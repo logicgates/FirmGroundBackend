@@ -15,6 +15,7 @@ import {
   verifyUserRegisteration,
   socialAccountLogin,
   resendVerifyForgotCode,
+  resendRegisterCode,
 } from '../../controllers/auth/authController.js';
 
 const router = express.Router();
@@ -26,6 +27,7 @@ router.delete('/delete/:userId', deleteUser);
 
 router.post('/login', login);
 router.post('/register', register);
+router.post('/resend-register-code', resendRegisterCode);
 router.post('/social-login', socialAccountLogin);
 router.post('/verify-email/:token', verifyUserRegisteration);
 router.post('/forgot-password', sendForgotCode);

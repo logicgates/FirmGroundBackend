@@ -146,6 +146,56 @@ export const register = async (req, res) => {
   }
 };
 
+export const resendRegisterCode = async (req, res) => {
+  try {
+    await resendVerifySchema.validate(req.body);
+    const user = await User.findOne({ email: req.body?.email }).exec();
+    if (!user)
+      return res
+        .status(404)
+        .send({ error: 'User not exist against this email.' });
+    let verificationCode = generateRandomString(6);
+    const verifyToken = await jwt.sign(
+      {
+        userId: user?._doc?._id,
+        code: verificationCode,
+        email: user?._doc?.email,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '1d', algorithm: 'HS512' }
+    );
+    const msg = {
+      from: mailAddress,
+      template_id: process.env.SENDGRID_TEM_ID_FOR_VERIFY_EMAIL,
+      personalizations: [
+        {
+          to: { email: `${user?._doc?.email}` },
+          dynamic_template_data: {
+            subject: 'verification Email Email',
+            name: user?._doc?.name,
+            verification_code: `${verificationCode}`,
+          },
+        },
+      ],
+    };
+    sgMail
+      .send(msg)
+      .then(() => {
+        res.status(200).send({
+          message: 
+            'Your account has been created and we send you a verification email.' +
+            'Please check your email and verify your account.',
+          verifyToken,
+        });
+      })
+      .catch((error) => {
+        res.status(401).send({ error: error });
+      });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
 export const verifyUserRegisteration = async (req, res) => {
   const { token } = req.params;
   try {
@@ -193,13 +243,14 @@ export const verifyUserRegisteration = async (req, res) => {
     errorMessage(res, error);
   }
 };
-  
+
 export const sendForgotCode = async (req, res) => {
   try {
     await resendVerifySchema.validate(req.body);
     let user = await User.findOne({email: req.body?.email});
     if (!user) return res.status(404).send({error: 'User is not registerd.'});
     let verificationCode = generateRandomString(6);
+    console.log(verificationCode);
     const salt = await bcrypt.genSalt(9);
     const hashCode = await bcrypt.hash(verificationCode, salt);
     const userVerification = await UserVerification.create({
@@ -237,7 +288,7 @@ export const sendForgotCode = async (req, res) => {
       .catch((error) => {
         res.status(401).send({ error: error });
       });
-    res.status(202).send({message: 'Email sent with reset link.'});
+    //res.status(202).send({message: 'Email sent with reset link.'});
   } catch (error) {
     errorMessage(res,error);
   }
@@ -253,6 +304,7 @@ export const resendVerifyForgotCode = async (req, res) => {
         .send({ error: 'User not exist against this email.' });
     await UserVerification.deleteMany({ userId: user?._id });
     let verificationCode = generateRandomString(6);
+    console.log(verificationCode);
     const salt = await bcrypt.genSalt(9);
     const hashCode = await bcrypt.hash(verificationCode, salt);
     const userVerification = await UserVerification.create({
@@ -335,9 +387,9 @@ export const resetPassword = async (req, res) => {
   if (!token) return res.status(401).send({ error: 'Token is not valid.' });
   try {
     await changePasswordSchema.validate(req.body);
-    const { userId } = await jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+    const { userId } = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     if (!userId) return res.status(401).send({ error: 'Token is not valid.' });
-    const salt = await bcrypt.genSalt(5);
+    const salt = await bcrypt.genSalt(9);
     const password = await bcrypt.hash(req.body?.password, salt);
     const updatedUser = await User.findByIdAndUpdate(userId, {
       password: password,
