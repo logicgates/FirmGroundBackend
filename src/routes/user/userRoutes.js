@@ -10,7 +10,7 @@ import {
   login,
   sendForgotCode,
   resetPassword,
-  verifyOtpCode,
+  verifyResetCode,
   generateRefreshToken,
   verifyUserRegisteration,
   socialAccountLogin,
@@ -31,7 +31,7 @@ router.post('/resend-register-code', resendRegisterCode);
 router.post('/social-login', socialAccountLogin);
 router.post('/verify-email/:token', verifyUserRegisteration);
 router.post('/forgot-password', sendForgotCode);
-router.post('/verify-code', verifyOtpCode);
+router.post('/verify-code', verifyResetCode);
 router.post('/resend-verify-code', resendVerifyForgotCode);
 router.get('/refresh-token/:refreshToken', generateRefreshToken);
 router.patch('/reset-password/:token', resetPassword);

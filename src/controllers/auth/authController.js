@@ -345,7 +345,7 @@ export const resendVerifyForgotCode = async (req, res) => {
   }
 };
 
-export const verifyOtpCode = async (req, res) => {
+export const verifyResetCode = async (req, res) => {
   try {
     await verifyCodeSchema.validate(req.body);
     const userVerification = await UserVerification.findOne({
