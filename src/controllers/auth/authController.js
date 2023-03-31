@@ -61,8 +61,18 @@ export const login = async (req, res) => {
   try {
     await loginSchema.validate(req.body);
     const user = await User.findOne({email: req.body?.email});
-    if (!user) return res.status(404).send({error: 'No account with that email address'});
-    if (!user.comparePassword(req.body?.password)) return res.status(401).send({error: 'Password incorrect'})
+    if (!user) 
+      return res
+        .status(404)
+        .send({ error: 'No account with that email address.' });
+    if (!user.isActive)
+      return res
+        .status(403)
+        .send({ error: 'Email not verified.' });
+    if (!user.comparePassword(req.body?.password))
+      return res
+        .status(401)
+        .send({ error: 'Password incorrect.' });
     let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
     const sessionUser = { userId: user?._id, email: user?.email };
     req.session.userInfo = sessionUser;

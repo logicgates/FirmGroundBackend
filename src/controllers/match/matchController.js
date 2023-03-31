@@ -177,15 +177,26 @@ export const updateParticiationStatus = async (req,res) => {
   const updateBody = req.body;
   const userInfo = req.session.userInfo;
   try {
-  let checkMatchExists = await Match.findById(matchId);
-  if (!checkMatchExists)
+  let match = await Match.findById(matchId);
+  if (!match)
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
+  let player = match.players.includes({ _id: userInfo?.userId });
+  if (!player)
+    return res
+      .status(404)
+      .send({ error: 'You are not a part of this match.' });
+  const status = await Match.updateOne(
+    { _id: matchId, 'players._id': _id },
+    { $set: { participationStatus: updateBody.status }},
+    { new: true }
+  );
+  res.status(200).send({ match, message: 'Player participation status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
 export const deleteMatch = async (req, res) => {
   const { matchId } = req.params;
