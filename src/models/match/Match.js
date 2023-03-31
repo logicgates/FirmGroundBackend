@@ -8,9 +8,8 @@ const matchSchema = new Schema({
     },
     players: [{
         _id: {
-            type: Schema.ObjectId,
+            type: String,
             required: true,
-            ref: 'User',
         },
         participationStatus: {
             type: String,

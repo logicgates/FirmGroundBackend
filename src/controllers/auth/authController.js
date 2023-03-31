@@ -396,7 +396,10 @@ export const resetPassword = async (req, res) => {
   try {
     await changePasswordSchema.validate(req.body);
     const { userId } = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    if (!userId) return res.status(401).send({ error: 'Token is not valid.' });
+    if (!userId) 
+      return res
+        .status(401)
+        .send({ error: 'Token is not valid.' });
     const salt = await bcrypt.genSalt(9);
     const password = await bcrypt.hash(req.body?.password, salt);
     const updatedUser = await User.findByIdAndUpdate(userId, {
