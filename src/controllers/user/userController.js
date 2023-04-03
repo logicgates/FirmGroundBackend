@@ -25,8 +25,11 @@ export const getUser = async (req, res) => {
       .status(401)
       .send({ error: 'You are not authorized for this request.' });
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).send({ error: 'User not found.' });
+    const user = await User.findOne({ _id: userId }, '-deleted -__v -password');
+    if (!user) 
+    return res
+      .status(404)
+      .send({ error: 'User not found.' });
     res.status(200).send({ user });
   } catch (error) {
     errorMessage(res,error);
@@ -89,17 +92,22 @@ export const changePassword = async (req,res) => {
   try {
     await changePasswordSchema.validate(req.body);
     const { password, oldPassword } = req.body;
-    const user = User.findById(userId);
-    if (!user) return res.status(404).send({ error: 'User not found.' });
+    const user = await User.findOne({ _id: userId }, '-deleted -__v');
+    if (!user) 
+    return res
+      .status(404)
+      .send({ error: 'User not found.' });
     const checkPassword = await bcrypt.compare(oldPassword, user?.password);
     if (!checkPassword)
       return res
         .status(400)
         .send({ error: 'Old password must need to be valid.' });
     if (password === oldPassword)
-      return res.status(400).send({
-        error: 'New password must be different from the old password.',
-      });
+      return res
+        .status(400)
+        .send({
+          error: 'New password must be different from the old password.',
+        });
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(password, salt);
     const updateUser = await User.findByIdAndUpdate(userId, {password: hashPassword});
@@ -114,9 +122,9 @@ export const changePassword = async (req,res) => {
 }
 
 export const deleteUser = async (req, res) => {
-  const user = req.session.userInfo;
+  const userInfo = req.session.userInfo;
   try {
-    const checkProfile = await User.findById(user?.userId);
+    const checkProfile = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v -password');
     if (!checkProfile)
       return res
         .status(404)

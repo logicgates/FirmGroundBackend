@@ -143,7 +143,7 @@ export const registerAndSendCode = async (req, res) => {
       .then(() => {
         res.status(200).send({
           message: 
-            'Your account has been created and we send you a verification email.' +
+            'Your account has been created and a verification email has been sent.' +
             'Please check your email and verify your account.',
           verifyToken,
         });
@@ -193,7 +193,7 @@ export const resendRegisterCode = async (req, res) => {
       .then(() => {
         res.status(200).send({
           message: 
-            'Your account has been created and we send you a verification email.' +
+            'Your account has been created and a verification email has been sent.' +
             'Please check your email and verify your account.',
           verifyToken,
         });
