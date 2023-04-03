@@ -12,7 +12,7 @@ export const createChat = async (req, res) => {
     if (checkIfPrivate) {
       chatExists = await Chat.findOne({
         // Checking if private chat already exists
-        $and: [{ membersList: userInfo?.userId }, { membersList: members[1] }],
+        $and: [{ membersList: userInfo?.userId }, { membersList: members[0] }],
       });
     }
     if (chatExists)
@@ -65,10 +65,19 @@ export const deleteChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat does not exist' });
-    if (chat.admins[0] !== userInfo?.userId)
-    return res
-      .status(401)
-      .send({ error: 'Only admins can delete a chat.' });
+    if (chat.isPrivate) {
+      const isMember = chat.membersList.includes(userInfo?.userId);
+      if (!isMember)
+        return res
+          .status(401)
+          .send({ error: 'You are not a part of this chat.' });
+    }
+    else {
+      if (chat.admins[0] !== userInfo?.userId)
+        return res
+          .status(401)
+          .send({ error: 'Only admins can delete a chat.' });
+    }
     await Chat.deleteOne({ _id: chatId });
     res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
@@ -102,7 +111,6 @@ export const createChatMessage = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Error retrieving user details.'});
-    console.log(user);
     const chat = await Chat.findById(chatId);
     if (!chat)
       return res
