@@ -1,18 +1,25 @@
 import mongoose, { Schema } from 'mongoose';
 
-const chatMsgSchema = new Schema({
-    chatId: {
-        type: String,
+const chatMsgSchema = new Schema(
+    {
+        chatId: {
+            type: String,
+            trim: true,
+        },
+        userId: {
+            type: String,
+            trim: true,
+        },
+        userName: {
+            type: String,
+            trim: true,
+        },
+        message: {
+            type: String,
+            trim: true,
+        },
     },
-    userId: {
-        type: String,
-    },
-    message: {
-        type: String,
-    },
-    timestamp: {
-        type: String,
-    }
-})
+    { timestamps: true }
+);
 
 export default mongoose.model('ChatMsg', chatMsgSchema);
