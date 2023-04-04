@@ -110,7 +110,7 @@ export const deleteChat = async (req, res) => {
 export const getChatMessages = async (req,res) => {
   const { chatId } = req.params;
   try {
-    const chatMsgs = await ChatMsg.find({ chatId }, '-deleted -__v');
+    const chatMsgs = await ChatMsg.find({ chatId }, '-deleted -__v').limit(20);
     if (!chatMsgs)
       return res
         .status(404)
