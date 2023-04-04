@@ -31,7 +31,7 @@ export const createChat = async (req, res) => {
         .send({ error: 'Private chat already exists.' });
     let today = new Date();
     let newChat = await Chat.create({
-      title: checkIfPrivate === true ? 'private chat' : req.body.title,
+      title: checkIfPrivate === true ? 'private chat' : 'group chat',
       admins: checkIfPrivate === true ? [] : userInfo?.userId,
       membersList: [],
       creationDate: today,
