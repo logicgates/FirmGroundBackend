@@ -1,7 +1,7 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
-import ChatMsg from '../../models/chatMessages/ChatMessage.js';
+import ChatMsg from '../../models/chatMessages/ChatMessages.js';
 import { object, string } from 'yup';
 
 const chatMessageSchema = object({
@@ -30,7 +30,7 @@ export const createChat = async (req, res) => {
       return res.status(400).send({ error: 'Private chat already exists.' });
     let today = new Date();
     let newChat = await Chat.create({
-      title: req.body.title,
+      title: checkIfPrivate === true ? 'private chat' : req.body.title,
       admins: checkIfPrivate === true ? [] : userInfo?.userId,
       membersList: [],
       creationDate: today,
@@ -58,6 +58,18 @@ export const getChats = async (req, res) => {
       '-deleted -__v'
     );
     if (!chats) return res.status(404).send({ error: 'No chats found.' });
+    for (const chat of chats) {
+      if (chat.isPrivate) {
+        let memberId = chat.membersList.filter(
+          (user) => userInfo?.userId !== user
+        );
+        let member = await User.findOne(
+          { _id: memberId[0] },
+          'firstName lastName'
+        );
+        chat.title = member.firstName + ' ' + member.lastName;
+      }
+    }
     res.status(200).send({ chats });
   } catch (error) {
     errorMessage(res, error);

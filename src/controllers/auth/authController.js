@@ -100,7 +100,10 @@ export const registerAndSendCode = async (req, res) => {
   try {
     await registerSchema.validate(req.body);
     let alreadyExist = await User.findOne({email: req.body.email});
-    if (alreadyExist) return res.status(200).send({ error:'User already exists.' });
+    if (alreadyExist)
+      return res.status(404).send({
+        error: 'Account already exist against this email.',
+      });
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(req.body.password, salt);
     let currentLoginDate = new Date();
@@ -131,6 +134,7 @@ export const registerAndSendCode = async (req, res) => {
         {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
+            fullName: "FirmGround",
             subject: 'verification Email Email',
             name: user?._doc?.name,
             verification_code: `${verificationCode}`,
@@ -181,6 +185,7 @@ export const resendRegisterCode = async (req, res) => {
         {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
+            fullName: "FirmGround",
             subject: 'verification Email Email',
             name: user?._doc?.name,
             verification_code: `${verificationCode}`,
@@ -260,6 +265,7 @@ export const sendForgotCode = async (req, res) => {
     let user = await User.findOne({email: req.body?.email});
     if (!user) return res.status(404).send({error: 'User is not registerd.'});
     let verificationCode = generateRandomString(6);
+    console.log(verificationCode)
     const salt = await bcrypt.genSalt(9);
     const hashCode = await bcrypt.hash(verificationCode, salt);
     const userVerification = await UserVerification.create({
@@ -278,6 +284,7 @@ export const sendForgotCode = async (req, res) => {
         {
           to: { email: `${user.email}` },
           dynamic_template_data: {
+            fullName: "FirmGround",
             subject: 'Forgot Password Email',
             verification_code: `${verificationCode}`,
           },
