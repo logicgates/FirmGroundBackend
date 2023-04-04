@@ -134,6 +134,7 @@ export const registerAndSendCode = async (req, res) => {
         {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
+            fullName: "FirmGround",
             subject: 'verification Email Email',
             name: user?._doc?.name,
             verification_code: `${verificationCode}`,
@@ -184,6 +185,7 @@ export const resendRegisterCode = async (req, res) => {
         {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
+            fullName: "FirmGround",
             subject: 'verification Email Email',
             name: user?._doc?.name,
             verification_code: `${verificationCode}`,
@@ -281,6 +283,7 @@ export const sendForgotCode = async (req, res) => {
         {
           to: { email: `${user.email}` },
           dynamic_template_data: {
+            fullName: "FirmGround",
             subject: 'Forgot Password Email',
             verification_code: `${verificationCode}`,
           },
