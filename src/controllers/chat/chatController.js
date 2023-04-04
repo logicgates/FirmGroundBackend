@@ -30,7 +30,7 @@ export const createChat = async (req, res) => {
       return res.status(400).send({ error: 'Private chat already exists.' });
     let today = new Date();
     let newChat = await Chat.create({
-      title: checkIfPrivate === true ? 'private chat' : req.body.title,
+      title: checkIfPrivate === true ? 'private chat' : 'group chat',
       admins: checkIfPrivate === true ? [] : userInfo?.userId,
       membersList: [],
       creationDate: today,
@@ -104,7 +104,7 @@ export const deleteChat = async (req, res) => {
 export const getChatMessages = async (req, res) => {
   const { chatId } = req.params;
   try {
-    const chatMsgs = await ChatMsg.find({ chatId }, '-deleted -__v');
+    const chatMsgs = await ChatMsg.find({ chatId }, '-deleted -__v').limit(20);
     if (!chatMsgs)
       return res
         .status(404)
