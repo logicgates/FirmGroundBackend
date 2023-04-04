@@ -41,7 +41,7 @@ export const getUsersList = async (req, res) => {
   try {
     const users = await User.find({}, 
       'firstName lastName phone pictureUrl');
-    const filteredUsers = users.filter(user=> userInfo?.userId !== user._id);
+    const filteredUsers = users.filter(user => userInfo?.userId !== user._id);
     if (!filteredUsers)
       return res
         .status(404)
