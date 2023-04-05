@@ -25,8 +25,9 @@ export const getUsersList = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     const users = await User.find({}, 
-      '_id firstName lastName phone pictureUrl');
-    const filteredUsers = users.filter(user => userInfo?.userId !== user._id);
+      'id firstName lastName phone pictureUrl');
+    const filteredUsers = users.filter(user => userInfo?.userId !== user.id);
+    console.log(userInfo.userId + ' and ' + users)
     if (!filteredUsers)
       return res
         .status(404)
