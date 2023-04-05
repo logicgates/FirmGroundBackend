@@ -1,7 +1,7 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
-import ChatMsg from '../../models/chatMessages/ChatMessages.js';
+import ChatMsg from '../../models/chatMessages/chatMessages.js';
 import { object, string } from 'yup';
 
 const chatMessageSchema = object({

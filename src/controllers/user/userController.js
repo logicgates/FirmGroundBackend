@@ -40,7 +40,7 @@ export const getUsersList = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     const users = await User.find({}, 
-      'firstName lastName phone pictureUrl');
+      '_id firstName lastName phone pictureUrl');
     const filteredUsers = users.filter(user => userInfo?.userId !== user._id);
     if (!filteredUsers)
       return res
