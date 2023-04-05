@@ -110,7 +110,12 @@ export const changePassword = async (req,res) => {
 }
 
 export const deleteUser = async (req, res) => {
+  const { userId } = req.params;
   const userInfo = req.session.userInfo;
+  if (userId !== userInfo?.userId)
+    return res
+      .status(401)
+      .send({ error: 'You are not authorized for this request.' });
   try {
     const checkProfile = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v -password');
     if (!checkProfile)
@@ -121,7 +126,7 @@ export const deleteUser = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Your profile has already been deleted.' })
-    const deleteProfile = await User.findByIdAndUpdate(user?.userId, {
+    const deleteProfile = await User.findByIdAndUpdate(userInfo?.userId, {
       deleted: { isDeleted: true, date: new Date() },
     });
     if (!deleteProfile)
