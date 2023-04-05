@@ -1,21 +1,6 @@
 import { errorMessage  } from '../../config/config.js';
 import User from '../../models/user/User.js';
-import { object, string } from 'yup';
-
-const updateUserSchema = object({
-  firstName: string().required('First name required.'),
-  lastName: string().required('Last name required.'),
-  dateOfBirth: string().required('Date of Birth is required.'),
-  countryCode: string(),
-  emergencyName: string(),
-  emergencyContact: string(),
-  city: string()
-});
-
-const changePasswordSchema = object({
-  oldPassword: string().required('Old password is required'),
-  password: string().min(8).max(32).required('Password is required'),
-});
+import { updateUserSchema, changePasswordSchema } from '../../schema/user/userSchema.js'
 
 export const getUser = async (req, res) => {
   const { userId } = req.params;
@@ -40,8 +25,8 @@ export const getUsersList = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     const users = await User.find({}, 
-      'firstName lastName phone pictureUrl');
-    const filteredUsers = users.filter(user => userInfo?.userId !== user._id);
+      'id firstName lastName phone pictureUrl');
+    const filteredUsers = users.filter(user => userInfo?.userId !== user.id);
     if (!filteredUsers)
       return res
         .status(404)

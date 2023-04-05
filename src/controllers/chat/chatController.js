@@ -2,11 +2,7 @@ import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
 import ChatMsg from '../../models/chatMessages/ChatMessage.js';
-import { object, string } from 'yup';
-
-const chatMessageSchema = object({
-  message: string(),
-});
+import { chatMessageSchema } from '../../schema/chat/chatSchema.js';
 
 export const createChat = async (req, res) => {
   const { members } = req.body;
@@ -30,7 +26,7 @@ export const createChat = async (req, res) => {
       return res.status(400).send({ error: 'Private chat already exists.' });
     let today = new Date();
     let newChat = await Chat.create({
-      title: checkIfPrivate === true ? 'private chat' : 'group chat',
+      title: checkIfPrivate === true ? 'Private chat' : 'New group chat',
       admins: checkIfPrivate === true ? [] : userInfo?.userId,
       membersList: [],
       creationDate: today,

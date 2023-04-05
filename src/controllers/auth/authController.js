@@ -1,61 +1,25 @@
 import { errorMessage, generateRandomString } from '../../config/config.js';
-import bcrypt from 'bcryptjs';
-import axios from 'axios';
-import User from '../../models/user/User.js';
 import UserVerification from '../../models/UserVerification/UserVerification.js';
-import { object, string } from 'yup';
+import {
+  registerSchema,
+  loginSchema,
+  resetPasswordSchema,
+  resendVerifySchema,
+  verifyCodeSchema,
+  verifyUserRegisterationSchema,
+  socialRegisterSchema
+} from '../../schema/user/userSchema.js'
+import User from '../../models/user/User.js';
 import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import axios from 'axios';
+
 dotenv.config();
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const mailAddress = 'myfirmground@gmail.com';
-
-const registerSchema = object({
-  firstName: string().required('First name required.'),
-  lastName: string().required('Last name required.'),
-  email: string().email().required('Email is required.'),
-  password: string().required('Password is required.').min(8, 'Password is too short - should be 8 chars minimum.'),
-  dateOfBirth: string().required('Date of Birth is required.'),
-  registerDate: string(),
-  countryCode: string(),
-  phone: string().required('Contact Number is required.'),
-  emergencyName: string(),
-  emergencyContact: string(),
-  city: string()
-});
-
-const loginSchema = object({
-    email: string().email().required('Email is required.'),
-    password: string().required('Password is required.'),
-});
-  
-const changePasswordSchema = object({
-  password: string().min(8).max(32).required('Password is required'),
-});
-
-const resendVerifySchema = object({
-  email: string().email().required('Email is required.'),
-});
-
-const verifyCodeSchema = object({
-  email: string().required('Email is required.').email('Please enter valid email'),
-  userId: string().required('User id is required.'),
-  code: string().required('Code is required.'),
-  codeHash: string().required('Code hash is required.'),
-});
-
-const verifyUserRegisterationSchema = object({
-  code: string().required('Email is required'),
-});
-
-const socialRegisterSchema = object({
-  firstName: string().required('First Name is required'),
-  lastName: string().required('Last Name is required'),
-  registerMethod: string()?.required('Please tell me about the registration method.'),
-  profileImage: string(),
-});
 
 export const login = async (req, res) => {
   try {
@@ -64,15 +28,15 @@ export const login = async (req, res) => {
     if (!user) 
       return res
         .status(404)
-        .send({ error: 'No account with that email address.' });
+        .send({ error: 'This email is not registered.' });
     if (!user.isActive)
       return res
         .status(403)
-        .send({ error: 'Email not verified.' });
+        .send({ error: 'Email is not verified.' });
     if (!user.comparePassword(req.body?.password))
       return res
         .status(401)
-        .send({ error: 'Password incorrect.' });
+        .send({ error: 'Password is incorrect.' });
     let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
     const sessionUser = { userId: user?._id, email: user?.email };
     req.session.userInfo = sessionUser;
@@ -99,14 +63,19 @@ export const login = async (req, res) => {
 export const registerAndSendCode = async (req, res) => {
   try {
     await registerSchema.validate(req.body);
-    let alreadyExist = await User.findOne({email: req.body.email});
-    if (alreadyExist)
+    let emailExist = await User.findOne({email: req.body.email});
+    if (emailExist)
       return res.status(404).send({
-        error: 'Account already exist against this email.',
+        error: 'This email is already in use.',
+      });
+    let phoneExist = await User.findOne({phone: req.body.phone});
+    if (phoneExist)
+      return res.status(404).send({
+        error: 'This phone number is already in use.',
       });
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(req.body.password, salt);
-    let currentLoginDate = new Date();
+    let currentDate = new Date();
     const user = await User.create({
       ...req.body,
       password: hashPassword,
@@ -114,10 +83,11 @@ export const registerAndSendCode = async (req, res) => {
       emergencyName:'',
       emergencyContact:'',
       status: false,
-      lastLoginDate: currentLoginDate,
+      lastLoginDate: '',
       pictureUrl:'',
+      registerDate: currentDate,
     });
-    let verificationCode = generateRandomString(6);
+    let verificationCode = generateRandomString(6).toUpperCase();
     const verifyToken = await jwt.sign(
       {
         userId: user?._doc?._id,
@@ -128,13 +98,13 @@ export const registerAndSendCode = async (req, res) => {
       { expiresIn: '1d', algorithm: 'HS512' }
     );
     const msg = {
+      fullName: "FirmGround",
       from: mailAddress,
       template_id: process.env.SENDGRID_TEM_ID_FOR_VERIFY_EMAIL,
       personalizations: [
         {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
-            fullName: "FirmGround",
             subject: 'verification Email Email',
             name: user?._doc?.name,
             verification_code: `${verificationCode}`,
@@ -167,8 +137,8 @@ export const resendRegisterCode = async (req, res) => {
     if (!user)
       return res
         .status(404)
-        .send({ error: 'User not exist against this email.' });
-    let verificationCode = generateRandomString(6);
+        .send({ error: 'This email is not registered.' });
+    let verificationCode = generateRandomString(6).toUpperCase();
     const verifyToken = await jwt.sign(
       {
         userId: user?._doc?._id,
@@ -179,13 +149,13 @@ export const resendRegisterCode = async (req, res) => {
       { expiresIn: '1d', algorithm: 'HS512' }
     );
     const msg = {
+      fullName: "FirmGround",
       from: mailAddress,
       template_id: process.env.SENDGRID_TEM_ID_FOR_VERIFY_EMAIL,
       personalizations: [
         {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
-            fullName: "FirmGround",
             subject: 'verification Email Email',
             name: user?._doc?.name,
             verification_code: `${verificationCode}`,
@@ -227,7 +197,7 @@ export const verifyUserRegisteration = async (req, res) => {
     const user = await User.findOne({ _id: userId, email }, '-deleted -__v');
     if (!user)
       return res.status(404).send({
-        message: 'Your account not found.',
+        message: 'This account was not found.',
       });
     if (user?._doc?.isActive)
       return res.status(400).send({
@@ -246,11 +216,11 @@ export const verifyUserRegisteration = async (req, res) => {
       { expiresIn: '30d', algorithm: 'HS512' }
     );
     await User.findByIdAndUpdate(user?._id, {
-      lastLoginAt: currentLoginDate,
+      lastLoginDate: currentLoginDate,
       isActive: true,
     });
     res.status(200).send({
-      user: { ...user?._doc, lastLoginAt: currentLoginDate, isActive: true },
+      user: { ...user?._doc, lastLoginDate: currentLoginDate, isActive: true },
       accessToken,
       refreshToken,
     });
@@ -263,9 +233,15 @@ export const sendForgotCode = async (req, res) => {
   try {
     await resendVerifySchema.validate(req.body);
     let user = await User.findOne({email: req.body?.email});
-    if (!user) return res.status(404).send({error: 'User is not registerd.'});
-    let verificationCode = generateRandomString(6);
-    console.log(verificationCode)
+    if (!user)
+      return res
+        .status(404)
+        .send({ error: 'This email is not registered.' });
+    if (!user.isActive)
+      return res
+        .status(403)
+        .send({ error: 'Email is not verified.' });
+    let verificationCode = generateRandomString(6).toUpperCase();
     const salt = await bcrypt.genSalt(9);
     const hashCode = await bcrypt.hash(verificationCode, salt);
     const userVerification = await UserVerification.create({
@@ -278,6 +254,7 @@ export const sendForgotCode = async (req, res) => {
         .status(500)
         .send({ error: 'Something went wrong please try again later.' });
     const msg = {
+      fullName: "FirmGround",
       from: mailAddress,
       template_id: process.env.SENDGRID_TEM_ID_FOR_FORGOT_PASSWORD,
       personalizations: [
@@ -304,7 +281,6 @@ export const sendForgotCode = async (req, res) => {
       .catch((error) => {
         res.status(401).send({ error: error });
       });
-    //res.status(202).send({message: 'Email sent with reset link.'});
   } catch (error) {
     errorMessage(res,error);
   }
@@ -317,9 +293,9 @@ export const resendVerifyForgotCode = async (req, res) => {
     if (!user)
       return res
         .status(404)
-        .send({ error: 'User not exist against this email.' });
+        .send({ error: 'This email is not registered.' });
     await UserVerification.deleteMany({ userId: user?._id });
-    let verificationCode = generateRandomString(6);
+    let verificationCode = generateRandomString(6).toUpperCase();
     const salt = await bcrypt.genSalt(9);
     const hashCode = await bcrypt.hash(verificationCode, salt);
     const userVerification = await UserVerification.create({
@@ -332,6 +308,7 @@ export const resendVerifyForgotCode = async (req, res) => {
         .status(500)
         .send({ error: 'Something went wrong please try again later.' });
     const msg = {
+      fullName: "FirmGround",
       from: mailAddress,
       template_id: process.env.SENDGRID_TEM_ID_FOR_FORGOT_PASSWORD,
       personalizations: [
@@ -401,7 +378,7 @@ export const resetPassword = async (req, res) => {
   const { token } = req.params;
   if (!token) return res.status(401).send({ error: 'Token is not valid.' });
   try {
-    await changePasswordSchema.validate(req.body);
+    await resetPasswordSchema.validate(req.body);
     const { userId } = await jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     if (!userId) 
       return res
