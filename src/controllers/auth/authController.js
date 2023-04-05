@@ -28,15 +28,15 @@ export const login = async (req, res) => {
     if (!user) 
       return res
         .status(404)
-        .send({ error: 'No account with that email address.' });
+        .send({ error: 'This email is not registered.' });
     if (!user.isActive)
       return res
         .status(403)
-        .send({ error: 'Email not verified.' });
+        .send({ error: 'Email is not verified.' });
     if (!user.comparePassword(req.body?.password))
       return res
         .status(401)
-        .send({ error: 'Password incorrect.' });
+        .send({ error: 'Password is incorrect.' });
     let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
     const sessionUser = { userId: user?._id, email: user?.email };
     req.session.userInfo = sessionUser;
@@ -66,12 +66,12 @@ export const registerAndSendCode = async (req, res) => {
     let emailExist = await User.findOne({email: req.body.email});
     if (emailExist)
       return res.status(404).send({
-        error: 'Account already registered with that email.',
+        error: 'This email is already in use.',
       });
     let phoneExist = await User.findOne({phone: req.body.phone});
     if (phoneExist)
       return res.status(404).send({
-        error: 'Account already registered with that phone number.',
+        error: 'This phone number is already in use.',
       });
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(req.body.password, salt);
@@ -87,7 +87,7 @@ export const registerAndSendCode = async (req, res) => {
       pictureUrl:'',
       registerDate: currentDate,
     });
-    let verificationCode = generateRandomString(6);
+    let verificationCode = generateRandomString(6).toUpperCase();
     const verifyToken = await jwt.sign(
       {
         userId: user?._doc?._id,
@@ -137,8 +137,8 @@ export const resendRegisterCode = async (req, res) => {
     if (!user)
       return res
         .status(404)
-        .send({ error: 'User not registered with this email.' });
-    let verificationCode = generateRandomString(6);
+        .send({ error: 'This email is not registered.' });
+    let verificationCode = generateRandomString(6).toUpperCase();
     const verifyToken = await jwt.sign(
       {
         userId: user?._doc?._id,
@@ -156,7 +156,6 @@ export const resendRegisterCode = async (req, res) => {
         {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
-            fullName: "FirmGround",
             subject: 'verification Email Email',
             name: user?._doc?.name,
             verification_code: `${verificationCode}`,
@@ -198,7 +197,7 @@ export const verifyUserRegisteration = async (req, res) => {
     const user = await User.findOne({ _id: userId, email }, '-deleted -__v');
     if (!user)
       return res.status(404).send({
-        message: 'Your account not found.',
+        message: 'This account was not found.',
       });
     if (user?._doc?.isActive)
       return res.status(400).send({
@@ -237,8 +236,12 @@ export const sendForgotCode = async (req, res) => {
     if (!user)
       return res
         .status(404)
-        .send({ error: 'User not registered with this email.' });
-    let verificationCode = generateRandomString(6);
+        .send({ error: 'This email is not registered.' });
+    if (!user.isActive)
+      return res
+        .status(403)
+        .send({ error: 'Email is not verified.' });
+    let verificationCode = generateRandomString(6).toUpperCase();
     const salt = await bcrypt.genSalt(9);
     const hashCode = await bcrypt.hash(verificationCode, salt);
     const userVerification = await UserVerification.create({
@@ -290,9 +293,9 @@ export const resendVerifyForgotCode = async (req, res) => {
     if (!user)
       return res
         .status(404)
-        .send({ error: 'User not registered with this email.' });
+        .send({ error: 'This email is not registered.' });
     await UserVerification.deleteMany({ userId: user?._id });
-    let verificationCode = generateRandomString(6);
+    let verificationCode = generateRandomString(6).toUpperCase();
     const salt = await bcrypt.genSalt(9);
     const hashCode = await bcrypt.hash(verificationCode, salt);
     const userVerification = await UserVerification.create({
