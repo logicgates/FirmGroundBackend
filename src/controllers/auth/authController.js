@@ -106,7 +106,7 @@ export const registerAndSendCode = async (req, res) => {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
             subject: 'verification Email Email',
-            name: user?._doc?.name,
+            name: user?._doc?.firstName,
             verification_code: `${verificationCode}`,
           },
         },
@@ -157,7 +157,7 @@ export const resendRegisterCode = async (req, res) => {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
             subject: 'verification Email Email',
-            name: user?._doc?.name,
+            name: user?._doc?.firstName,
             verification_code: `${verificationCode}`,
           },
         },
