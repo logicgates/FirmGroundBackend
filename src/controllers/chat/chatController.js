@@ -21,16 +21,15 @@ export const createChat = async (req, res) => {
       chatExists = await Chat.findOne(
         {
           $and: [
-            { membersList: userInfo?.userId }, 
-            { membersList: members[0] }
-          ]
-        }, '-deleted -__v'
+            { membersList: userInfo?.userId },
+            { membersList: members[0] },
+          ],
+        },
+        '-deleted -__v'
       );
     }
     if (chatExists)
-      return res
-        .status(400)
-        .send({ error: 'Private chat already exists.' });
+      return res.status(400).send({ error: 'Private chat already exists.' });
     let today = new Date();
     let newChat = await Chat.create({
       title: checkIfPrivate === true ? 'Private chat' : req.body.title,
@@ -40,8 +39,7 @@ export const createChat = async (req, res) => {
       isPrivate: checkIfPrivate,
       chatImage: '',
     });
-    if (checkIfPrivate) 
-      newChat.membersList.push(userInfo?.userId);
+    if (checkIfPrivate) newChat.membersList.push(userInfo?.userId);
     members.forEach((member) => {
       newChat.membersList.push(member);
     });
@@ -58,24 +56,24 @@ export const getChats = async (req, res) => {
     const chats = await Chat.find(
       // Find all chats the user is in as admin or member
       {
-        $or: [
-          { admins: userInfo?.userId }, 
-          { membersList: userInfo?.userId }
-        ],
-      }, '-deleted -__v'
+        $or: [{ admins: userInfo?.userId }, { membersList: userInfo?.userId }],
+      },
+      '-deleted -__v'
     );
-    if (!chats)
-      return res
-        .status(404)
-        .send({ error: 'No chats found.' });
+    if (!chats) return res.status(404).send({ error: 'No chats found.' });
     for (const chat of chats) {
       if (chat.isPrivate) {
-        let memberId = chat.membersList.filter(user => userInfo?.userId !== user);
-        let member = await User.findOne({ _id: memberId[0] }, 'firstName lastName');
+        let memberId = chat.membersList.filter(
+          (user) => userInfo?.userId !== user
+        );
+        let member = await User.findOne(
+          { _id: memberId[0] },
+          'firstName lastName'
+        );
         chat.title = member.firstName + ' ' + member.lastName;
         chat.chatImage = member.profileImage;
       }
-    };
+    }
     res.status(200).send({ chats });
   } catch (error) {
     errorMessage(res, error);
@@ -135,18 +133,14 @@ export const deleteChat = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat)
-      return res
-        .status(404)
-        .send({ error: 'Chat does not exist' });
+    if (!chat) return res.status(404).send({ error: 'Chat does not exist' });
     if (chat.isPrivate) {
       const isMember = chat.membersList.includes(userInfo?.userId);
       if (!isMember)
         return res
           .status(401)
           .send({ error: 'You are not a part of this chat.' });
-    }
-    else {
+    } else {
       if (chat.admins[0] !== userInfo?.userId)
         return res
           .status(401)
@@ -166,7 +160,7 @@ export const deleteChat = async (req, res) => {
   }
 };
 
-export const getChatMessages = async (req,res) => {
+export const getChatMessages = async (req, res) => {
   const { chatId } = req.params;
   try {
     const chatMsgs = await ChatMsg.find({ chatId }, '-deleted -__v').limit(20);
@@ -178,9 +172,9 @@ export const getChatMessages = async (req,res) => {
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
-export const createChatMessage = async (req,res) => {
+export const createChatMessage = async (req, res) => {
   const { chatId } = req.params;
   const userInfo = req.session.userInfo;
   try {
@@ -193,14 +187,9 @@ export const createChatMessage = async (req,res) => {
       '-deleted -__v -password'
     );
     if (!user)
-      return res
-        .status(404)
-        .send({ error: 'Error retrieving user details.'});
+      return res.status(404).send({ error: 'Error retrieving user details.' });
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat)
-      return res
-        .status(404)
-        .send({ error: 'Chat does not exist' });
+    if (!chat) return res.status(404).send({ error: 'Chat does not exist' });
     const message = await ChatMsg.create({
       chatId: chatId,
       userId: userInfo?.userId,
@@ -211,13 +200,13 @@ export const createChatMessage = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-  res.status(200).send({ chatMessage: message });
+    res.status(200).send({ chatMessage: message });
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
-export const deleteChatMessage = async (req,res) => {
+export const deleteChatMessage = async (req, res) => {
   const { messageId } = req.params;
   try {
     const message = await ChatMsg.findOne({ _id: messageId }, '-deleted -__v');
@@ -234,4 +223,4 @@ export const deleteChatMessage = async (req,res) => {
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
