@@ -1,8 +1,8 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
-import ChatMsg from '../../models/chatMessages/chatMessages.js';
-import { chatMessageSchema } from '../../schema/chat/chatSchema.js'
+import ChatMsg from '../../models/chatMessages/ChatMessage.js';
+import { chatMessageSchema } from '../../schema/chat/chatSchema.js';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
 import crypto from 'crypto';
@@ -85,10 +85,7 @@ export const updateChat = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat)
-      return res
-        .status(404)
-        .send({ error: 'Chat was not found.' });
+    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
     const isAdmin = chat.admins.includes(userInfo?.userId);
     if (!isAdmin)
       return res
@@ -121,7 +118,7 @@ export const updateChat = async (req, res) => {
     const updatedChat = await Chat.findByIdAndUpdate(chatId, {
       title: req.body?.title,
       chatImage: `${process.env.S3_BUCKET_ACCESS_URL}chat/${fileName}.${fileMimetype}`,
-    })
+    });
     res.status(200).send({ chat: updatedChat });
   } catch (error) {
     errorMessage(res, error);
