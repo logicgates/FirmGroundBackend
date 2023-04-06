@@ -18,13 +18,14 @@ import {
   resendVerifyForgotCode,
   resendRegisterCode,
 } from '../../controllers/auth/authController.js';
+import { upload } from '../../config/multerConfig.js';
 
 const router = express.Router();
 
 router.get('/user/:userId', getUser);
 router.get('/users-list', getUsersList)
 router.post('/change-password/:userId', changePassword);
-router.patch('/update/:userId', updateUser);
+router.put('/update/:userId', upload.single('image'), updateUser);
 router.delete('/delete/:userId', deleteUser);
 
 router.post('/login', login);
@@ -36,6 +37,6 @@ router.post('/forgot-password', sendForgotCode);
 router.post('/resend-verify-code', resendVerifyForgotCode);
 router.post('/verify-code', verifyForgotCode);
 router.get('/refresh-token/:refreshToken', generateRefreshToken);
-router.patch('/reset-password/:token', resetPassword);
+router.put('/reset-password/:token', resetPassword);
 
 export default router;

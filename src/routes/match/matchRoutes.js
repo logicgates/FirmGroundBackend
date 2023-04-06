@@ -4,8 +4,8 @@ import { createMatch, deleteMatch, getAllMatches, updateMatch, updateParticiatio
 const router = express.Router();
 
 router.post('/create/:userId', createMatch);
-router.patch('/update/:matchId', updateMatch);
-router.patch('/update-status/:matchId', updateParticiationStatus)
+router.put('/update/:matchId', updateMatch);
+router.put('/update-status/:matchId', updateParticiationStatus)
 router.get('/group-matches', getAllMatches)
 router.delete('/delete/:matchId', deleteMatch);
 

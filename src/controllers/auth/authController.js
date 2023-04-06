@@ -1,5 +1,6 @@
 import { errorMessage, generateRandomString } from '../../config/config.js';
 import UserVerification from '../../models/UserVerification/UserVerification.js';
+import { s3Client } from '../../config/awsConfig.js';
 import {
   registerSchema,
   loginSchema,
@@ -13,10 +14,12 @@ import User from '../../models/user/User.js';
 import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
-
 dotenv.config();
+
+const bucketName = process.env.S3_BUCKET_NAME;
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const mailAddress = 'myfirmground@gmail.com';
@@ -84,7 +87,7 @@ export const registerAndSendCode = async (req, res) => {
       emergencyContact:'',
       status: false,
       lastLoginDate: '',
-      pictureUrl:'',
+      profileImage:'',
       registerDate: currentDate,
     });
     let verificationCode = generateRandomString(6).toUpperCase();
@@ -106,7 +109,7 @@ export const registerAndSendCode = async (req, res) => {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
             subject: 'verification Email Email',
-            name: user?._doc?.name,
+            name: user?._doc?.firstName,
             verification_code: `${verificationCode}`,
           },
         },
@@ -157,7 +160,7 @@ export const resendRegisterCode = async (req, res) => {
           to: { email: `${user?._doc?.email}` },
           dynamic_template_data: {
             subject: 'verification Email Email',
-            name: user?._doc?.name,
+            name: user?._doc?.firstName,
             verification_code: `${verificationCode}`,
           },
         },
@@ -183,6 +186,10 @@ export const resendRegisterCode = async (req, res) => {
 
 export const verifyUserRegisteration = async (req, res) => {
   const { token } = req.params;
+  if (!token)
+    return res
+      .status(407)
+      .send({ error: 'Proxy Authentication Required.' });
   try {
     const currentLoginDate = new Date();
     await verifyUserRegisterationSchema.validate(req.body);
@@ -444,25 +451,27 @@ export const socialAccountLogin = async (req, res) => {
     let user;
     if (req.body.registerMethod === 'facebook' && !req.body?.email) {
       if (!req.body?.facebookId)
-        return res.status(400).send({ error: 'Facebook user id is required.' });
-      user = await User.findOne({
-        facebookId: req.body?.facebookId,
-      });
+        return res
+          .status(400)
+          .send({ error: 'Facebook user id is required.' });
+      user = await User.findOne({ facebookId: req.body?.facebookId });
       if (!user && !req.body?.email)
-        return res.status(400).send({
-          error: 'Email is required.',
-          emailRequired: true,
-          firstName: req.body?.firstName,
-          lastName: req.body?.lastName,
-          facebookId: req.body?.facebookId,
-          profileImage: req.body?.profileImage,
-        });
+        return res
+          .status(400)
+          .send({
+            error: 'Email is required.',
+            emailRequired: true,
+            firstName: req.body?.firstName,
+            lastName: req.body?.lastName,
+            facebookId: req.body?.facebookId,
+            profileImage: req.body?.profileImage,
+          });
     } else {
       if (!req.body?.email)
-        return res.status(400).send({ error: 'Email is required.' });
-      user = await User.findOne({
-        email: req.body?.email,
-      });
+        return res
+          .status(400)
+          .send({ error: 'Email is required.' });
+      user = await User.findOne({ email: req.body?.email });
       if (req.body.registerMethod === 'facebook' && req.body?.facebookId)
         user = await User.findByIdAndUpdate(user?._doc?._id, {
           facebookId: req.body?.facebookId,

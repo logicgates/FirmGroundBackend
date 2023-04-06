@@ -70,7 +70,7 @@ const userSchema = new Schema({
   lastLoginDate: {
     type: String,
   },
-  pictureUrl: {
+  profileImage: {
     type: String,
     trim: true,
   }

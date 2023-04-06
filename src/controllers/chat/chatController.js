@@ -1,8 +1,14 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
-import ChatMsg from '../../models/chatMessages/ChatMessage.js';
-import { chatMessageSchema } from '../../schema/chat/chatSchema.js';
+import ChatMsg from '../../models/chatMessages/chatMessages.js';
+import { chatMessageSchema } from '../../schema/chat/chatSchema.js'
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { s3Client } from '../../config/awsConfig.js';
+import crypto from 'crypto';
+import sharp from 'sharp';
+
+const bucketName = process.env.S3_BUCKET_NAME;
 
 export const createChat = async (req, res) => {
   const { members } = req.body;
@@ -26,11 +32,12 @@ export const createChat = async (req, res) => {
       return res.status(400).send({ error: 'Private chat already exists.' });
     let today = new Date();
     let newChat = await Chat.create({
-      title: checkIfPrivate === true ? 'Private chat' : 'New group chat',
+      title: checkIfPrivate === true ? 'Private chat' : req.body.title,
       admins: checkIfPrivate === true ? [] : userInfo?.userId,
       membersList: [],
       creationDate: today,
       isPrivate: checkIfPrivate,
+      chatImage: '',
     });
     if (checkIfPrivate) newChat.membersList.push(userInfo?.userId);
     members.forEach((member) => {
@@ -64,9 +71,58 @@ export const getChats = async (req, res) => {
           'firstName lastName'
         );
         chat.title = member.firstName + ' ' + member.lastName;
+        chat.chatImage = member.profileImage;
       }
     }
     res.status(200).send({ chats });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const updateChat = async (req, res) => {
+  const { chatId } = req.params;
+  const userInfo = req.session.userInfo;
+  try {
+    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
+    if (!chat)
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins are allowed to update chat group.' });
+    let fileName = '';
+    if (req.file) {
+      if (chat?._doc?.chatImage) {
+        const commandDel = new DeleteObjectCommand({
+          Bucket: bucketName,
+          Key: `${
+            chat?.chatImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+          }`,
+        });
+        await s3Client.send(commandDel);
+      }
+      fileName = crypto.randomBytes(32).toString('hex');
+      const fileMimetype = req.file.mimetype.split('/')[1];
+      const buffer = await sharp(req.file.buffer)
+        .resize({ width: 520, height: 520, fit: 'contain' })
+        .toBuffer();
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: `chat/${fileName}.${fileMimetype}`,
+        Body: buffer,
+        ContentType: req.file.mimetype,
+      });
+      s3Client.send(command);
+    }
+    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+      title: req.body?.title,
+      chatImage: `${process.env.S3_BUCKET_ACCESS_URL}chat/${fileName}.${fileMimetype}`,
+    })
+    res.status(200).send({ chat: updatedChat });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -90,6 +146,13 @@ export const deleteChat = async (req, res) => {
           .status(401)
           .send({ error: 'Only admins can delete a chat.' });
     }
+    const commandDel = new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: `${
+        chat?.chatImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+      }`,
+    });
+    await s3Client.send(commandDel);
     await Chat.deleteOne({ _id: chatId });
     res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
