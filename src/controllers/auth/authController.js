@@ -14,6 +14,7 @@ import User from '../../models/user/User.js';
 import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import axios from 'axios';
 dotenv.config();

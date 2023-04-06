@@ -8,12 +8,13 @@ import {
   createChatMessage,
   deleteChatMessage,
 } from '../../controllers/chat/chatController.js';
+import { upload } from '../../config/multerConfig.js';
 
 const router = express.Router();
 
 router.get('/get-chats', getChats);
 router.post('/create', createChat);
-router.patch('/update/:chatId', updateChat)
+router.put('/update/:chatId', upload.single('image'), updateChat)
 router.delete('/delete/:chatId', deleteChat);
 
 router.get('/get-messages/:chatId', getChatMessages);

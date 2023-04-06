@@ -2,6 +2,9 @@ import { errorMessage  } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import { updateUserSchema, changePasswordSchema } from '../../schema/user/userSchema.js'
 import { s3Client } from '../../config/awsConfig.js';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import sharp from 'sharp';
+import crypto from 'crypto';
 
 const bucketName = process.env.S3_BUCKET_NAME;
 
@@ -50,38 +53,50 @@ export const updateUser = async (req, res) => {
       .send({ error: 'You are not authorized for this request.' });
   try {
     await updateUserSchema.validate(req.body);
-    if (updateBody?.profileImage) {
-      const fileName = crypto.randomBytes(32).toString('hex');
-      const response = await axios.get(updateBody?.profileImage, {
-        responseType: 'arraybuffer',
-      });
-      const buffer = Buffer.from(response.data, 'utf-8');
+    const user = await User.findOne({ _id: userId }, '-deleted -__v -password');
+    let fileName = '';
+    let imageUrl = user.profileImage;
+    if (req.file) {
+      if (user?._doc?.profileImage) {
+        const commandDel = new DeleteObjectCommand({
+          Bucket: bucketName,
+          Key: `${
+            user?.profileImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+          }`,
+        });
+        await s3Client.send(commandDel);
+      }
+      fileName = crypto.randomBytes(32).toString('hex');
+      const fileMimetype = req.file.mimetype.split('/')[1];
+      const buffer = await sharp(req.file.buffer)
+        .resize({ width: 520, height: 520, fit: 'contain' })
+        .toBuffer();
       const command = new PutObjectCommand({
         Bucket: bucketName,
-        Key: `profile/${fileName}`,
+        Key: `profile/${fileName}.${fileMimetype}`,
         Body: buffer,
+        ContentType: req.file.mimetype,
       });
-      s3Client.send(command);
+      await s3Client.send(command);
+      imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}.${fileMimetype}`;
     }
-    const updateUser = await User.updateOne(
-      { _id: userId },
-      { $set: {
+    const updateUser = await User.findByIdAndUpdate( userId,
+      {
         name: updateBody.name,
         phone: updateBody.phone,
         dateOfBirth: updateBody.dateOfBirth,
         emergencyName: updateBody.emergencyName,
         emergencyContact: updateBody.emergencyContact,
         city: updateBody.city,
-        profileImage: `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}`, 
-      }
-    }, { new: true }
+        profileImage: imageUrl, 
+      }, 
+      { new: true }
   );
   if (!updateUser)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-  const user = await User.findById(userId);
-  res.status(201).send({ user: user, message:'User has been updated.' });
+  res.status(201).send({ user: updateUser, message:'User has been updated.' });
   } catch (error) {
     errorMessage(res,error);
   }
@@ -143,9 +158,7 @@ export const deleteUser = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Your profile has already been deleted.' })
-    const deleteProfile = await User.findByIdAndUpdate(userInfo?.userId, {
-      deleted: { isDeleted: true, date: new Date() },
-    });
+    const deleteProfile = await User.findByIdAndDelete(userInfo?.userId);
     if (!deleteProfile)
       return res
         .status(404)
