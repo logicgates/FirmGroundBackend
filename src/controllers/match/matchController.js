@@ -2,6 +2,9 @@ import { errorMessage } from '../../config/config.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
 import { matchSchema, updateMatchSchema } from '../../schema/chat/chatSchema.js'
+import { s3Client } from '../../config/awsConfig.js';
+
+const bucketName = process.env.S3_BUCKET_NAME;
 
 export const createMatch = async (req, res) => {
   const userInfo = req.session.userInfo;

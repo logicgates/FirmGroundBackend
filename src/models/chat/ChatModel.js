@@ -19,6 +19,9 @@ const chatSchema = new Schema(
     isPrivate: {
       type: Boolean,
     },
+    chatImage: {
+      type: String,
+    }
   },
   { timestamps: true }
 );

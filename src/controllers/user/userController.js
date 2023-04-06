@@ -1,6 +1,9 @@
 import { errorMessage  } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import { updateUserSchema, changePasswordSchema } from '../../schema/user/userSchema.js'
+import { s3Client } from '../../config/awsConfig.js';
+
+const bucketName = process.env.S3_BUCKET_NAME;
 
 export const getUser = async (req, res) => {
   const { userId } = req.params;
@@ -47,6 +50,19 @@ export const updateUser = async (req, res) => {
       .send({ error: 'You are not authorized for this request.' });
   try {
     await updateUserSchema.validate(req.body);
+    if (updateBody?.profileImage) {
+      const fileName = crypto.randomBytes(32).toString('hex');
+      const response = await axios.get(updateBody?.profileImage, {
+        responseType: 'arraybuffer',
+      });
+      const buffer = Buffer.from(response.data, 'utf-8');
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: `profile/${fileName}`,
+        Body: buffer,
+      });
+      s3Client.send(command);
+    }
     const updateUser = await User.updateOne(
       { _id: userId },
       { $set: {
@@ -55,7 +71,8 @@ export const updateUser = async (req, res) => {
         dateOfBirth: updateBody.dateOfBirth,
         emergencyName: updateBody.emergencyName,
         emergencyContact: updateBody.emergencyContact,
-        city: updateBody.city 
+        city: updateBody.city,
+        profileImage: `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}`, 
       }
     }, { new: true }
   );

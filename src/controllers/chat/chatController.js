@@ -3,6 +3,9 @@ import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
 import ChatMsg from '../../models/chatMessages/chatMessages.js';
 import { chatMessageSchema } from '../../schema/chat/chatSchema.js'
+import { s3Client } from '../../config/awsConfig.js';
+
+const bucketName = process.env.S3_BUCKET_NAME;
 
 export const createChat = async (req, res) => {
   const { members } = req.body;
@@ -32,6 +35,7 @@ export const createChat = async (req, res) => {
       membersList: [],
       creationDate: today,
       isPrivate: checkIfPrivate,
+      chatImage: '',
     });
     if (checkIfPrivate) 
       newChat.membersList.push(userInfo?.userId);
@@ -66,9 +70,46 @@ export const getChats = async (req, res) => {
         let memberId = chat.membersList.filter(user => userInfo?.userId !== user);
         let member = await User.findOne({ _id: memberId[0] }, 'firstName lastName');
         chat.title = member.firstName + ' ' + member.lastName;
+        chat.chatImage = member.profileImage;
       }
     };
     res.status(200).send({ chats });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const updateChat = async (req, res) => {
+  const { chatId } = req.params;
+  const userInfo = req.session.userInfo;
+  try {
+    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
+    if (!chat)
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins are allowed to update chat group.' });
+    if (updateBody?.chatImage) {
+      const fileName = crypto.randomBytes(32).toString('hex');
+      const response = await axios.get(updateBody?.profileImage, {
+        responseType: 'arraybuffer',
+      });
+      const buffer = Buffer.from(response.data, 'utf-8');
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: `profile/${fileName}`,
+        Body: buffer,
+      });
+      s3Client.send(command);
+    }
+    chat.title = req.body?.title;
+    chat.chatImage = `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}`;
+    chat.save();
+    res.status(200).send({ chat });
   } catch (error) {
     errorMessage(res, error);
   }
