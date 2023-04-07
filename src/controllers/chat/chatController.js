@@ -264,7 +264,7 @@ export const leaveChat = async (req,res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-      res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
+      res.status(200).send({ message: 'You have left chat group successfully.' });
     }
     const isMember = chat.membersList.includes(userInfo?.userId);
     if (isMember) {
