@@ -67,15 +67,20 @@ export const registerAndSendCode = async (req, res) => {
   try {
     await registerSchema.validate(req.body);
     let emailExist = await User.findOne({email: req.body.email});
-    if (emailExist)
-      return res.status(404).send({
-        error: 'This email is already in use.',
-      });
+    if (emailExist) {
+      if (!emailExist.isActive)
+        return res
+          .status(403)
+          .send({ error: 'Account already registered but not verified.' });
+      return res
+        .status(404)
+        .send({ error: 'This email is already in use.' });
+    }
     let phoneExist = await User.findOne({phone: req.body.phone});
     if (phoneExist)
-      return res.status(404).send({
-        error: 'This phone number is already in use.',
-      });
+      return res
+        .status(404)
+        .send({ error: 'This phone number is already in use.' });
     const salt = await bcrypt.genSalt(9);
     const hashPassword = await bcrypt.hash(req.body.password, salt);
     let currentDate = new Date();
@@ -120,7 +125,7 @@ export const registerAndSendCode = async (req, res) => {
       .then(() => {
         res.status(200).send({
           message: 
-            'Your account has been created and a verification email has been sent.' +
+            'Your account has been created and a verification email has been sent. ' +
             'Please check your email and verify your account.',
           verifyToken,
         });
@@ -171,7 +176,7 @@ export const resendRegisterCode = async (req, res) => {
       .then(() => {
         res.status(200).send({
           message: 
-            'Your account has been created and a verification email has been sent.' +
+            'Your account has been created and a verification email has been sent. ' +
             'Please check your email and verify your account.',
           verifyToken,
         });
