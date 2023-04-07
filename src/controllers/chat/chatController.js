@@ -266,7 +266,7 @@ export const leaveChat = async (req,res) => {
           .send({ error: 'Something went wrong please try again later.' });
       res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
     }
-    const isMember = Chat.membersList.includes(userInfo?.userId);
+    const isMember = chat.membersList.includes(userInfo?.userId);
     if (isMember) {
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
         $pull: { membersList: userInfo?.userId },
