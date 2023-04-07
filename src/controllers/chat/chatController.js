@@ -155,6 +155,32 @@ export const addMembers = async (req, res) => {
   }
 }
 
+export const removeMemeber = async (req,res) => {
+  const { chatId } = req.params;
+  const { member } = req.body;
+  const userInfo = req.session.userInfo;
+  try {
+    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
+    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
+    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
+    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins are allowed to add new members.' });
+    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+      $pull: { membersList: member },
+    });
+    if (!updatedChat)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    res.status(200).send({ chat: updatedChat, message: 'Member removed successfully.' });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+}
+
 export const deleteChat = async (req, res) => {
   const { chatId } = req.params;
   const userInfo = req.session.userInfo;
