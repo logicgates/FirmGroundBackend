@@ -90,12 +90,12 @@ export const updateMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Chat group was not found.' });
-  let checkMatchExists = await Match.findById(matchId);
+  const checkMatchExists = await Match.findById(matchId);
   if (!checkMatchExists)
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
-  let isAdmin = chatGroup.admins.includes(userInfo?.userId);
+  const isAdmin = chatGroup.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
       .status(404)
@@ -138,7 +138,7 @@ export const updateParticiationStatus = async (req,res) => {
   const updateBody = req.body;
   const userInfo = req.session.userInfo;
   try {
-  let match = await Match.findById(matchId);
+  const match = await Match.findById(matchId);
   if (!match)
     return res
       .status(404)
@@ -148,16 +148,15 @@ export const updateParticiationStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'You are not a part of this match.' });
-  const status = await Match.findByIdAndUpdate(matchId,
+  const updatedMatch = await Match.findByIdAndUpdate(matchId,
     { $set: { 'players.$[elem].participationStatus': updateBody.status }},
-    { arrayFilters: [{ 'elem._id': userInfo?.userId }] }
+    { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
   );
-  if (!status)
+  if (!updatedMatch)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-  match = await Match.findById(matchId);
-  res.status(200).send({ match, message: 'Player participation status has been updated.' });
+  res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
   }

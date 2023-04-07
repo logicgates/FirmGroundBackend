@@ -119,6 +119,10 @@ export const updateChat = async (req, res) => {
       title: req.body?.title,
       chatImage: `${process.env.S3_BUCKET_ACCESS_URL}chat/${fileName}.${fileMimetype}`,
     });
+    if (!updatedChat)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
     res.status(200).send({ chat: updatedChat });
   } catch (error) {
     errorMessage(res, error);
@@ -132,17 +136,20 @@ export const addMembers = async (req, res) => {
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
     if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'This is a private chat.' });
+    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
     const isAdmin = chat.admins.includes(userInfo?.userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to add new members.' });
-    members.forEach((member) => {
-      chat.membersList.push(member);
+    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+      $push: { membersList: { $each: members } },
     });
-    chat.save();
-    res.status(200).send({ chat, message: 'New member(s) added successfully.' });
+    if (!updatedChat)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    res.status(200).send({ chat: updatedChat, message: 'New member(s) added successfully.' });
   } catch (error) {
     errorMessage(res, error);
   }
