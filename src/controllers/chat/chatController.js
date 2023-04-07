@@ -235,6 +235,53 @@ export const removeAdmin = async (req,res) => {
   }
 }
 
+export const leaveChat = async (req,res) => {
+  const { chatId } = req.params;
+  const userInfo = req.session.userInfo;
+  try {
+    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
+    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
+    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
+    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (isAdmin) {
+      const adminCount = chat.admins.length;
+      if (adminCount === 1) {
+        const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+          $push: { admins: membersList[0] },
+          $pull: { admins: userInfo?.userId },
+          $pop: { membersList: -1 },
+        });
+      if (!updatedChat)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+      res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
+      }
+      const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+        $pull: { admins: userInfo?.userId },
+      });
+      if (!updatedChat)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+      res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
+    }
+    const isMember = Chat.membersList.includes(userInfo?.userId);
+    if (isMember) {
+      const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+        $pull: { membersList: userInfo?.userId },
+      });
+      if (!updatedChat)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+      res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
+    }
+  } catch (error) {
+    errorMessage(res, error);
+  }
+}
+
 export const deleteChat = async (req, res) => {
   const { chatId } = req.params;
   const userInfo = req.session.userInfo;
