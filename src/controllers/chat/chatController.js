@@ -39,6 +39,7 @@ export const createChat = async (req, res) => {
       creationDate: today,
       isPrivate: checkIfPrivate,
       chatImage: '',
+      lastMessage: {},
     });
     if (checkIfPrivate) newChat.membersList.push(userInfo?.userId);
     members.forEach((member) => {

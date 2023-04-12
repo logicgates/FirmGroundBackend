@@ -1,7 +1,7 @@
 import { object, string, number } from 'yup';
 
 export const chatMessageSchema = object({
-    message: string(),
+    message: object(),
 });
 
 export const matchSchema = object({

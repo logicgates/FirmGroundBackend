@@ -12,7 +12,7 @@ import {
 } from '../../controllers/chat/chatController.js';
 import {
   getMessages,
-  addMessage,
+  createMessage,
   deleteMessage,
 } from '../../controllers/chatMessage/chatMessageController.js'
 import { upload } from '../../config/multerConfig.js';
@@ -31,7 +31,7 @@ router.put('/remove-admin/:chatId', removeAdmin);
 router.put('/leave-chat/:chatId', leaveChat);
 
 router.get('/get-messages/:chatId', getMessages);
-router.post('/create-message/:chatId', addMessage);
-router.delete('/delete-message/:messageId', deleteMessage);
+router.post('/create-message/:chatId', createMessage);
+router.delete('/delete-message', deleteMessage);
 
 export default router;
