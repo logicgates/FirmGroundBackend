@@ -32,6 +32,6 @@ router.put('/leave-chat/:chatId', leaveChat);
 
 router.get('/get-messages/:chatId', getMessages);
 router.post('/create-message/:chatId', createMessage);
-router.delete('/delete-message', deleteMessage);
+router.delete('/delete-message/:userId', deleteMessage);
 
 export default router;

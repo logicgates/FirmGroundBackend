@@ -75,6 +75,12 @@ export const createMessage = async (req, res) => {
 
 export const deleteMessage = async (req, res) => {
   const { chatId, messageId } = req.body;
+  const { userId } = req.params;
+  const userInfo = req.session.userInfo;
+  if (userId !== userInfo?.userId)
+    return res
+      .status(401)
+      .send({ error: 'You can only delete your own messages.' });
   try {
     const chatRef = db.collection('chats').doc(chatId);
     const chatDoc = await chatRef.get();
