@@ -152,12 +152,12 @@ export const deleteUser = async (req, res) => {
       .status(401)
       .send({ error: 'You are not authorized for this request.' });
   try {
-    const checkProfile = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v -password');
-    if (!checkProfile)
+    const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v -password');
+    if (!user)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    if (checkProfile?._doc?.deleted?.isDeleted)
+    if (user?._doc?.deleted?.isDeleted)
       return res
         .status(400)
         .send({ error: 'Your profile has already been deleted.' })
@@ -166,6 +166,15 @@ export const deleteUser = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    if (user?._doc?.profileImage) {
+      const commandDel = new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: `${
+          user?.profileImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+        }`,
+      });
+      await s3Client.send(commandDel);
+    }
     res.status(410).send({ message: 'Your profile has been deleted.' });
   } catch (error) {
     errorMessage(res,error);

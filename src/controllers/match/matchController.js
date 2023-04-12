@@ -197,8 +197,8 @@ export const deleteMatch = async (req, res) => {
   const updateBody = req.body;
   const userInfo = req.session.userInfo;
   try {
-  const chatGroup = await Chat.findById(updateBody.chatId);
-  if (!chatGroup)
+  const chat = await Chat.findById(updateBody.chatId);
+  if (!chat)
     return res
       .status(404)
       .send({ error: 'Chat group was not found.' });
@@ -207,7 +207,7 @@ export const deleteMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
-  let isAdmin = chatGroup.admins.includes(userInfo?.userId);
+  let isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
       .status(404)
@@ -217,6 +217,15 @@ export const deleteMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    if (chat?._doc?.pictureUrl) {
+      const commandDel = new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: `${
+          chat?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+        }`,
+      });
+      await s3Client.send(commandDel);
+    }
     res.status(201).send({ message: 'Match has been deleted.' });
   } catch (error) {
     errorMessage(res, error);
