@@ -82,7 +82,8 @@ export const updateUser = async (req, res) => {
       await s3Client.send(command);
       imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}.${fileMimetype}`;
     }
-    const updateUser = await User.findByIdAndUpdate( userId,
+    const updateUser = await User.findByIdAndUpdate(
+      userId,
       {
         name: updateBody.name,
         phone: updateBody.phone,

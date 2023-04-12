@@ -2,7 +2,10 @@ import { errorMessage } from '../../config/config.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
 import { matchSchema, updateMatchSchema } from '../../schema/chat/chatSchema.js'
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
+import sharp from 'sharp';
+import crypto from 'crypto';
 
 const bucketName = process.env.S3_BUCKET_NAME;
 
@@ -85,8 +88,8 @@ export const updateMatch = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
   await updateMatchSchema.validate(updateBody);
-  const chatGroup = await Chat.findById(updateBody.chatId);
-  if (!chatGroup)
+  const chat = await Chat.findById(updateBody.chatId);
+  if (!chat)
     return res
       .status(404)
       .send({ error: 'Chat group was not found.' });
@@ -95,17 +98,43 @@ export const updateMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
-  const isAdmin = chatGroup.admins.includes(userInfo?.userId);
+  const isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update a match.' });
+  let fileName = '';
+  let imageUrl = chat.pictureUrl;
+  if (req.file) {
+    if (chat?._doc?.pictureUrl) {
+      const commandDel = new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: `${
+          chat?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+        }`,
+      });
+      await s3Client.send(commandDel);
+    }
+    fileName = crypto.randomBytes(32).toString('hex');
+    const fileMimetype = req.file?.mimetype.split('/')[1];
+    const buffer = await sharp(req.file?.buffer)
+      .resize({ width: 960, height: 540, fit: 'contain' })
+      .toBuffer();
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: `match/${fileName}.${fileMimetype}`,
+      Body: buffer,
+      ContentType: req.file?.mimetype,
+    });
+    await s3Client.send(command);
+    imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}match/${fileName}.${fileMimetype}`;
+  }
   const match = await Match.findByIdAndUpdate(
     matchId,
     {
       title: updateBody.title,
       location: updateBody.location,
-      pictureUrl: updateBody.pictureUrl,
+      pictureUrl: imageUrl,
       type: updateBody.type,
       date: updateBody.date,
       meetTime: updateBody.meetTime,
@@ -121,7 +150,8 @@ export const updateMatch = async (req, res) => {
       cost: updateBody.cost,
       costPerPerson: updateBody.costPerPerson,
       recurring: updateBody.recurring,
-    }, { new: true }
+    }, 
+    { new: true }
 );
   if (!match)
       return res
