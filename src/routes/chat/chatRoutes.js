@@ -4,15 +4,17 @@ import {
   updateChat,
   getChats,
   deleteChat,
-  getChatMessages,
-  createChatMessage,
-  deleteChatMessage,
   addMembers,
   removeMemeber,
   makeAdmin,
   removeAdmin,
   leaveChat
 } from '../../controllers/chat/chatController.js';
+import {
+  getMessages,
+  addMessage,
+  deleteMessage,
+} from '../../controllers/chatMessage/chatMessageController.js'
 import { upload } from '../../config/multerConfig.js';
 
 const router = express.Router();
@@ -28,8 +30,8 @@ router.put('/make-admin/:chatId', makeAdmin);
 router.put('/remove-admin/:chatId', removeAdmin);
 router.put('/leave-chat/:chatId', leaveChat);
 
-router.get('/get-messages/:chatId', getChatMessages);
-router.post('/create-message/:chatId', createChatMessage);
-router.delete('/delete-message/:messageId', deleteChatMessage);
+router.get('/get-messages/:chatId', getMessages);
+router.post('/create-message/:chatId', addMessage);
+router.delete('/delete-message/:messageId', deleteMessage);
 
 export default router;

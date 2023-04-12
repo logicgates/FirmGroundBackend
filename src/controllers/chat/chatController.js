@@ -5,6 +5,7 @@ import ChatMsg from '../../models/chatMessages/ChatMessage.js';
 import { chatMessageSchema } from '../../schema/chat/chatSchema.js';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
+import db from '../../config/firebaseConfig.js';
 import crypto from 'crypto';
 import sharp from 'sharp';
 
@@ -44,6 +45,17 @@ export const createChat = async (req, res) => {
       newChat.membersList.push(member);
     });
     newChat.save();
+    // Add the new chat to Firestore
+    const chatId = newChat._id.toString(); // Use the chat _id as the document name in Firestore
+    const newChatRef = await db.collection('chats').doc(chatId).set({
+      title: newChat.title,
+      creationDate: newChat.creationDate,
+      isPrivate: newChat.isPrivate,
+    });
+    if (!newChat || !newChatRef)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
@@ -314,7 +326,7 @@ export const deleteChat = async (req, res) => {
   }
 };
 
-export const getChatMessages = async (req, res) => {
+export const getMessages = async (req, res) => {
   const { chatId } = req.params;
   try {
     const chatMsgs = await ChatMsg.find({ chatId }, '-deleted -__v').limit(20);
@@ -328,33 +340,34 @@ export const getChatMessages = async (req, res) => {
   }
 };
 
-export const createChatMessage = async (req, res) => {
-  const { chatId } = req.params;
+export const addMessage = async (req, res) => {
+  const { chatId, message } = req.body;
   const userInfo = req.session.userInfo;
   try {
-    await chatMessageSchema.validate(req.body);
-    const user = await User.findOne(
-      {
-        _id: userInfo?.userId,
-        email: userInfo?.email,
-      },
-      '-deleted -__v -password'
-    );
-    if (!user)
-      return res.status(404).send({ error: 'Error retrieving user details.' });
-    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat does not exist' });
-    const message = await ChatMsg.create({
-      chatId: chatId,
-      userId: userInfo?.userId,
-      userName: user.firstName + ' ' + user.lastName,
-      message: req.body?.message,
-    });
-    if (!message)
+    const chatRef = db.collection('chats').doc(chatId);
+    const chatDoc = await chatRef.get();
+    if (!chatDoc.exists)
       return res
         .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
-    res.status(200).send({ chatMessage: message });
+        .send({ error: 'Chat not found.' });
+    const user = await User.findById(userInfo?.userId);
+    const newMessage = {
+      userId: userInfo?.userId,
+      userName: user.firstName + ' ' + user.lastName,
+      message: req.body.message,
+      createdAt: new Date(),
+    };
+    const newMessageRef = await chatRef.collection('messages').add({newMessage});
+    const chat = await Chat.findByIdAndUpdate(
+      chatId,
+      { lastMessage: newMessage, },
+      { new: true }
+    );
+    if (!chat)
+      return res
+        .status(404)
+        .send({ error: 'last message not found.' });
+    res.status(201).send({ chat });
   } catch (error) {
     errorMessage(res, error);
   }
