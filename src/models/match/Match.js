@@ -1,4 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
+import moment from 'moment';
 
 const matchSchema = new Schema({
     chatId: {
@@ -16,6 +17,9 @@ const matchSchema = new Schema({
             required: true
         }
     }],
+    activePlayers: { // Players with participation status as 'in' only
+        type: Array,
+    },
     teamA: { // List of members' id in team A
         type: Array,
     },
@@ -96,6 +100,12 @@ const matchSchema = new Schema({
     creationDate: {
         type: String,
     }
-})
+});
+
+matchSchema.methods.isOpenForPlayers = function () {
+    const matchDateTime = moment(`${this.date} ${this.meetTime}`, 'DD-MM-YYYY hh:mm A');
+    const currentDateTime = moment();
+    return currentDateTime.isBefore(matchDateTime);
+};
 
 export default mongoose.model('Match', matchSchema);

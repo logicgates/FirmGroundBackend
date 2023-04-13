@@ -1,7 +1,7 @@
 import { errorMessage } from '../../config/config.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
-import { matchSchema, updateMatchSchema } from '../../schema/chat/chatSchema.js'
+import { matchSchema, updateMatchSchema, addPlayerToTeamSchema } from '../../schema/chat/chatSchema.js'
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
 import sharp from 'sharp';
@@ -29,10 +29,11 @@ export const createMatch = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Match with that title already exists.' });
-    let currentDate = new Date();
+    const currentDate = new Date();
     const match = await Match.create({
       chatId: updateBody.chatId,
       players: [],
+      activePlayers: [],
       teamA: [],
       teamB: [],
       ...updateBody,
@@ -67,8 +68,8 @@ export const getAllMatches = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat group was not found.' });
-    let isAdmin = chatGroup.admins.includes(userInfo?.userId);
-    let isMember = chatGroup.membersList.includes(userInfo?.userId);
+    const isAdmin = chatGroup.admins.includes(userInfo?.userId);
+    const isMember = chatGroup.membersList.includes(userInfo?.userId);
     if (!isMember && !isAdmin)
       return res
         .status(404)
@@ -77,6 +78,32 @@ export const getAllMatches = async (req, res) => {
     if (!groupMatches)
       return res.status(404).send({ error: 'No matches found for the chat group.' });
     res.status(200).send({ groupMatches });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const getActivePlayers = async (req, res) => {
+  const { matchId } = req.params;
+  const { chatId } = req.body;
+  const userInfo = req.session.userInfo;
+  try {
+  const chat = await Chat.findById(chatId);
+  if (!chat)
+    return res
+      .status(404)
+      .send({ error: 'Chat group was not found.' });
+  const match = await Match.findById(matchId);
+  if (!match)
+    return res
+      .status(404)
+      .send({ error: 'Match for chat group was not found.' });
+  const isAdmin = chat.admins.includes(userInfo?.userId);
+  if (!isAdmin)
+    return res
+      .status(404)
+      .send({ error: 'Only admins are allowed to add players.' });
+  res.status(200).send({ players: match.activePlayers });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -178,15 +205,84 @@ export const updateParticiationStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'You are not a part of this match.' });
-  const updatedMatch = await Match.findByIdAndUpdate(matchId,
-    { $set: { 'players.$[elem].participationStatus': updateBody.status }},
-    { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
+  const isActivePlayer = match.activePlayers.includes(userInfo?.userId);
+  let updatedMatch;
+  if (match.isOpenForPlayers()) {
+    if(!isActivePlayer && updateBody.status === 'in') {
+      updatedMatch = await Match.findByIdAndUpdate(
+        matchId,
+        { 
+          $set: { 'players.$[elem].participationStatus': updateBody.status },
+          $push: { activePlayers: userInfo?.userId }
+        },
+        { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
+      );
+    }
+    else if(isActivePlayer && updateBody.status === 'out') {
+      updatedMatch = await Match.findByIdAndUpdate(
+        matchId,
+        { 
+          $set: { 'players.$[elem].participationStatus': updateBody.status },
+          $pull: { activePlayers: userInfo?.userId }
+        },
+        { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
+      );
+    }
+    else {
+      updatedMatch = await Match.findByIdAndUpdate(
+        matchId,
+        { $set: { 'players.$[elem].participationStatus': updateBody.status }},
+        { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
+      );
+    }
+    if (!updatedMatch)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+    res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
+  }
+  else{
+    res.status(403).send({ error: 'The match is no longer accepting new players.' });
+  }
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const addPlayerToTeam = async (req, res) => {
+  const { matchId } = req.params;
+  const { chatId, team, members } = req.body;
+  const userInfo = req.session.userInfo;
+  try {
+  await addPlayerToTeamSchema.validate(team);
+  const chat = await Chat.findById(chatId);
+  if (!chat)
+    return res
+      .status(404)
+      .send({ error: 'Chat group was not found.' });
+  const match = await Match.findById(matchId);
+  if (!match)
+    return res
+      .status(404)
+      .send({ error: 'Match for chat group was not found.' });
+  const isAdmin = chat.admins.includes(userInfo?.userId);
+  if (!isAdmin)
+    return res
+      .status(404)
+      .send({ error: 'Only admins are allowed to add players.' });
+  const updatedMatch = await Match.findByIdAndUpdate(
+    matchId,
+    { 
+      $push: { [`team${team}`]: { $each: members } },
+      $pull: { activePlayers: { $each: members } }
+    },
+    { new: true },
   );
   if (!updatedMatch)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-  res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
+  res.status(200).send({ match: updatedMatch, message: `Player added to team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
