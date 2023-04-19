@@ -60,7 +60,7 @@ export const createMatch = async (req, res) => {
 };
 
 export const getAllMatches = async (req, res) => {
-  const { chatId } = req.body
+  const { chatId } = req.params
   const userInfo = req.session.userInfo;
   try {
     const chatGroup = await Chat.findById(chatId);
@@ -85,19 +85,18 @@ export const getAllMatches = async (req, res) => {
 
 export const getActivePlayers = async (req, res) => {
   const { matchId } = req.params;
-  const { chatId } = req.body;
   const userInfo = req.session.userInfo;
   try {
-  const chat = await Chat.findById(chatId);
-  if (!chat)
-    return res
-      .status(404)
-      .send({ error: 'Chat group was not found.' });
-  const match = await Match.findById(matchId);
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (!match)
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
+  const chat = await Chat.findOne({ _id: match.chatId }, '-deleted -__v');
+  if (!chat)
+    return res
+      .status(404)
+      .send({ error: 'Chat group was not found.' });
   const isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
@@ -115,12 +114,12 @@ export const updateMatch = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
   await updateMatchSchema.validate(updateBody);
-  const chat = await Chat.findById(updateBody.chatId);
+  const chat = await Chat.findOne({ _id: updateBody.chatId }, '-deleted -__v');
   if (!chat)
     return res
       .status(404)
       .send({ error: 'Chat group was not found.' });
-  const checkMatchExists = await Match.findById(matchId);
+  const checkMatchExists = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (!checkMatchExists)
     return res
       .status(404)
@@ -195,7 +194,7 @@ export const updateParticiationStatus = async (req,res) => {
   const updateBody = req.body;
   const userInfo = req.session.userInfo;
   try {
-  const match = await Match.findById(matchId);
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (!match)
     return res
       .status(404)
@@ -255,12 +254,12 @@ export const addPlayerToTeam = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
   await addPlayerToTeamSchema.validate(team);
-  const chat = await Chat.findById(chatId);
+  const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
   if (!chat)
     return res
       .status(404)
       .send({ error: 'Chat group was not found.' });
-  const match = await Match.findById(matchId);
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (!match)
     return res
       .status(404)
@@ -290,10 +289,10 @@ export const addPlayerToTeam = async (req, res) => {
 
 export const deleteMatch = async (req, res) => {
   const { matchId } = req.params;
-  const updateBody = req.body;
+  const { chatId } = req.body;
   const userInfo = req.session.userInfo;
   try {
-  const chat = await Chat.findById(updateBody.chatId);
+  const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
   if (!chat)
     return res
       .status(404)
