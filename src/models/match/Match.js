@@ -12,20 +12,49 @@ const matchSchema = new Schema({
             type: String,
             required: true,
         },
+        name: {
+            type: String,
+            required: true
+        },
         participationStatus: {
             type: String,
             required: true
         }
     }],
-    activePlayers: { // Players with participation status as 'in' only
-        type: Array,
-    },
-    teamA: { // List of members' id in team A
-        type: Array,
-    },
-    teamB: { // List of members' id in team B
-        type: Array,
-    },
+    activePlayers: [{ // Players with participation status as 'in' only
+        _id: {
+            type: String,
+            required: true,
+        },
+        name: {
+            type: String,
+            required: true
+        },
+        profileUrl: {
+            type: String,
+            required: true
+        }
+    }],
+    teamA: [{ // Players with participation status as 'in' only
+        _id: {
+            type: String,
+            required: true,
+        },
+        name: {
+            type: String,
+            required: true
+        },
+    }],
+    teamB: [{ // Players with participation status as 'in' only
+        _id: {
+            type: String,
+            required: true,
+        },
+        name: {
+            type: String,
+            required: true
+        },
+    }],
     title: {
         type: String,
         trim: true,

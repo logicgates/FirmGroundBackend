@@ -1,4 +1,5 @@
 import { errorMessage } from '../../config/config.js';
+import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
 import { matchSchema, updateMatchSchema, addPlayerToTeamSchema } from '../../schema/chat/chatSchema.js'
@@ -24,11 +25,30 @@ export const createMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to create a match.' });
-    let alreadyExist = await Match.findOne({ title: updateBody.title });
+    let alreadyExist = await Match.findOne()
+      .and([ { title: updateBody.title }, { chatId: updateBody.chatId } ])
+      .exec();
     if (alreadyExist)
       return res
         .status(400)
         .send({ error: 'Match with that title already exists.' });
+    let imageUrl = '';
+    let fileName = '';
+    if (req.file) {
+      fileName = crypto.randomBytes(32).toString('hex');
+      const fileMimetype = req.file?.mimetype.split('/')[1];
+      const buffer = await sharp(req.file?.buffer)
+        .resize({ width: 960, height: 540, fit: 'contain' })
+        .toBuffer();
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: `match/${fileName}.${fileMimetype}`,
+        Body: buffer,
+        ContentType: req.file?.mimetype,
+      });
+      await s3Client.send(command);
+      imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}match/${fileName}.${fileMimetype}`;
+    }
     const currentDate = new Date();
     const match = await Match.create({
       chatId: updateBody.chatId,
@@ -36,21 +56,35 @@ export const createMatch = async (req, res) => {
       activePlayers: [],
       teamA: [],
       teamB: [],
+      pictureUrl: imageUrl,
       ...updateBody,
       creationDate: currentDate,
     });
     // push every group member and admin in the player's array as an object with player id and status
-    chatGroup.admins.forEach((member) => {
-      match.players.push({
-        _id: member,
-        participationStatus: 'pending',
-      });
+    await User.find({ _id: { $in: chatGroup.admins } })
+    .select('firstName')
+    .then(
+      users => {
+        users.forEach(user => {
+          match.players.push({
+            _id: user._id,
+            name: user.firstName,
+            participationStatus: 'pending',
+          });
+        });
     });
-    chatGroup.membersList.forEach((member) => {
-      match.players.push({
-        _id: member,
-        participationStatus: 'pending',
-      });
+
+    await User.find({ _id: { $in: chatGroup.membersList } })
+    .select('firstName')
+    .then(
+      users => {
+        users.forEach(user => {
+          match.players.push({
+            _id: user._id,
+            name: user.firstName,
+            participationStatus: 'pending',
+          });
+        });
     });
     match.save();
     res.status(201).send({ match, message: 'Match has been created.' });
@@ -130,7 +164,7 @@ export const updateMatch = async (req, res) => {
       .status(404)
       .send({ error: 'Only admins are allowed to update a match.' });
   let fileName = '';
-  let imageUrl = chat.pictureUrl;
+  let imageUrl = checkMatchExists.pictureUrl;
   if (req.file) {
     if (chat?._doc?.pictureUrl) {
       const commandDel = new DeleteObjectCommand({
@@ -199,50 +233,46 @@ export const updateParticiationStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
-  const player = match.players.some( (player) => player._id === userInfo?.userId );
+  const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v');
+  if (!user)
+    return res
+      .status(404)
+      .send({ error: 'User timeout. Please login and try again.' });
+  const player = match.players.some( player => player._id === userInfo?.userId );
   if (!player)
     return res
       .status(404)
       .send({ error: 'You are not a part of this match.' });
-  const isActivePlayer = match.activePlayers.includes(userInfo?.userId);
-  let updatedMatch;
-  if (match.isOpenForPlayers()) {
-    if(!isActivePlayer && updateBody.status === 'in') {
-      updatedMatch = await Match.findByIdAndUpdate(
-        matchId,
-        { 
-          $set: { 'players.$[elem].participationStatus': updateBody.status },
-          $push: { activePlayers: userInfo?.userId }
-        },
-        { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
-      );
-    }
-    else if(isActivePlayer && updateBody.status === 'out') {
-      updatedMatch = await Match.findByIdAndUpdate(
-        matchId,
-        { 
-          $set: { 'players.$[elem].participationStatus': updateBody.status },
-          $pull: { activePlayers: userInfo?.userId }
-        },
-        { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
-      );
-    }
-    else {
-      updatedMatch = await Match.findByIdAndUpdate(
-        matchId,
-        { $set: { 'players.$[elem].participationStatus': updateBody.status }},
-        { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true },
-      );
-    }
-    if (!updatedMatch)
-        return res
-          .status(404)
-          .send({ error: 'Something went wrong please try again later.' });
-    res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
+  const isActivePlayer = match.activePlayers.find(player => player._id === userInfo?.userId);
+  const isInTeamA = match.teamA.find(player => player._id === userInfo?.userId);
+  const isInTeamB = match.teamB.find(player => player._id === userInfo?.userId);
+  if (isInTeamA || isInTeamB)
+    return res
+      .status(403)
+      .send({ error: 'You are already a part of a team.' });
+  if (!match.isOpenForPlayers()) {
+    return res
+      .status(403)
+      .send({ error: 'The match is no longer accepting new players.' });
   }
-  else{
-    res.status(403).send({ error: 'The match is no longer accepting new players.' });
+  const update = { 'players.$[elem].participationStatus': updateBody.status };
+  const options = { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true };
+  if (!isActivePlayer && updateBody.status === 'in') {
+    update['$push'] = { activePlayers: {
+      _id: userInfo?.userId,
+      name: user.firstName,
+      profileUrl: user.profileUrl,
+    } };
+  } else if (isActivePlayer && updateBody.status === 'out') {
+    update['$pull'] = { activePlayers: {_id: userInfo?.userId} };
   }
+  const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+  if (!updatedMatch) {
+    return res
+      .status(404)
+      .send({ error: 'Something went wrong please try again later.' });
+  }
+  res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -253,7 +283,6 @@ export const addPlayerToTeam = async (req, res) => {
   const { chatId, team, members } = req.body;
   const userInfo = req.session.userInfo;
   try {
-  await addPlayerToTeamSchema.validate(team);
   const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
   if (!chat)
     return res
@@ -269,11 +298,27 @@ export const addPlayerToTeam = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to add players.' });
+  if (members.length === 0)
+    return res
+      .status(404)
+      .send({ error: "Please provide at least one member to add to the team." });
+  const activePlayers = match.activePlayers;
+  const newTeamMembers = [];
+  members.forEach(memberId => {
+    const foundPlayer = activePlayers.find(player => player._id.toString() === memberId.toString());
+    if (foundPlayer) {
+      newTeamMembers.push({ _id: foundPlayer._id, name: foundPlayer.name });
+    }
+  });
+  if (newTeamMembers.length === 0) 
+    return res
+      .status(404)
+      .send({ error: 'None of the selected members are active players.' });
   const updatedMatch = await Match.findByIdAndUpdate(
     matchId,
     { 
-      $push: { [`team${team}`]: { $each: members } },
-      $pull: { activePlayers: { $each: members } }
+      $push: { [`team${team}`]: { $each: newTeamMembers } },
+      $pull: { activePlayers: { _id: { $in: members } } },
     },
     { new: true },
   );

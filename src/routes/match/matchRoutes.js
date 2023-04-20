@@ -14,7 +14,7 @@ const router = express.Router();
 
 router.get('/group-matches/:chatId', getAllMatches);
 router.get('/active-list/:matchId', getActivePlayers);
-router.post('/create/:userId', createMatch);
+router.post('/create/:userId', upload.single('image'), createMatch);
 router.put('/update/:matchId', upload.single('image'), updateMatch);
 router.put('/update-status/:matchId', updateParticiationStatus);
 router.put('/add-to-team/:matchId', addPlayerToTeam);
