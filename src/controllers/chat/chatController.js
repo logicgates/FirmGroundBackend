@@ -66,6 +66,11 @@ export const createChat = async (req, res) => {
 export const getChats = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
+    const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v');
+    if (!user)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login.' });
     const chats = await Chat.find(
       // Find all chats the user is in as admin or member
       {
@@ -305,12 +310,12 @@ export const deleteChat = async (req, res) => {
       const isMember = chat.membersList.includes(userInfo?.userId);
       if (!isMember)
         return res
-          .status(401)
+          .status(403)
           .send({ error: 'You are not a part of this chat.' });
     } else {
       if (chat.admins[0] !== userInfo?.userId)
         return res
-          .status(401)
+          .status(403)
           .send({ error: 'Only admins can delete a chat.' });
     }
     const commandDel = new DeleteObjectCommand({

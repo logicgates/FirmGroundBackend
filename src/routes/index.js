@@ -9,6 +9,6 @@ import stadium from './stadium/stadiumRoutes.js';
 router.use('/auth', user);
 router.use('/chat', chat);
 router.use('/match', match);
-router.use('/stadium', stadium)
+router.use('/stadium', stadium);
 
 export default router;

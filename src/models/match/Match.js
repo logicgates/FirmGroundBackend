@@ -19,6 +19,10 @@ const matchSchema = new Schema({
         participationStatus: {
             type: String,
             required: true
+        },
+        payment: {
+            type: String,
+            required: true
         }
     }],
     activePlayers: [{ // Players with participation status as 'in' only
@@ -128,6 +132,12 @@ const matchSchema = new Schema({
     },
     creationDate: {
         type: String,
+    },
+    isLocked: {
+        type: Boolean,
+    },
+    isCancelled: {
+        type: Boolean,
     }
 });
 

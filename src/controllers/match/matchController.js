@@ -57,6 +57,9 @@ export const createMatch = async (req, res) => {
       teamA: [],
       teamB: [],
       pictureUrl: imageUrl,
+      costPerPerson: 0,
+      isCancelled: false,
+      isLocked: false,
       ...updateBody,
       creationDate: currentDate,
     });
@@ -70,6 +73,7 @@ export const createMatch = async (req, res) => {
             _id: user._id,
             name: user.firstName,
             participationStatus: 'pending',
+            payment: 'unpaid',
           });
         });
     });
@@ -83,6 +87,7 @@ export const createMatch = async (req, res) => {
             _id: user._id,
             name: user.firstName,
             participationStatus: 'pending',
+            payment: 'unpaid',
           });
         });
     });
@@ -153,18 +158,22 @@ export const updateMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Chat group was not found.' });
-  const checkMatchExists = await Match.findOne({ _id: matchId }, '-deleted -__v');
-  if (!checkMatchExists)
+  const matchExists = await Match.findOne({ _id: matchId }, '-deleted -__v');
+  if (!matchExists)
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
+  if (matchExists.isCancelled || matchExists.isLocked)
+    return res
+      .status(403)
+      .send({ error: 'This match is cancelled. Please create new match.' });
   const isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update a match.' });
   let fileName = '';
-  let imageUrl = checkMatchExists.pictureUrl;
+  let imageUrl = matchExists.pictureUrl;
   if (req.file) {
     if (chat?._doc?.pictureUrl) {
       const commandDel = new DeleteObjectCommand({
@@ -208,11 +217,17 @@ export const updateMatch = async (req, res) => {
       boots: updateBody.boots,
       condition: updateBody.condition,
       cost: updateBody.cost,
-      costPerPerson: updateBody.costPerPerson,
       recurring: updateBody.recurring,
     }, 
     { new: true }
-);
+  );
+  const activePlayers = match.players.filter(
+    (player) => player.participationStatus === 'in'
+  );
+  const numActivePlayers = activePlayers.length;
+  const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
+  match.costPerPerson = costPerPerson;
+  match.save();
   if (!match)
       return res
         .status(404)
@@ -233,6 +248,10 @@ export const updateParticiationStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
+  if (match.isCancelled || match.isLocked)
+    return res
+      .status(403)
+      .send({ error: 'Match is closed. Please create new match.' });
   const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v');
   if (!user)
     return res
@@ -267,12 +286,64 @@ export const updateParticiationStatus = async (req,res) => {
     update['$pull'] = { activePlayers: {_id: userInfo?.userId} };
   }
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
-  if (!updatedMatch) {
+  if (!updatedMatch)
     return res
       .status(404)
       .send({ error: 'Something went wrong please try again later.' });
-  }
+  const activePlayers = updatedMatch.players.filter(
+      (player) => player.participationStatus === 'in'
+    );
+  const numActivePlayers = activePlayers.length;
+  const costPerPerson = numActivePlayers > 0 ? updatedMatch.cost / numActivePlayers : 0;
+  await Match.findOneAndUpdate(
+    { _id: matchId },
+    { costPerPerson },
+    { new: true }
+  );
   res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const updatePaymentStatus = async (req,res) => {
+  const { matchId } = req.params;
+  const updateBody = req.body;
+  const userInfo = req.session.userInfo;
+  try {
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
+  if (!match)
+    return res
+      .status(404)
+      .send({ error: 'Match for chat group was not found.' });
+  if (match.isCancelled || match.isLocked)
+    return res
+      .status(403)
+      .send({ error: 'Match is closed. Please create new match.' });
+  const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v');
+  if (!user)
+    return res
+      .status(404)
+      .send({ error: 'User timeout. Please login and try again.' });
+  const player = match.players.some( player => player._id === userInfo?.userId );
+  if (!player)
+    return res
+      .status(404)
+      .send({ error: 'You are not a part of this match.' });
+  const chat = await Chat.findOne({ _id: match.chatId._id }, '-deleted -__v');
+  let isAdmin = chat.admins.includes(userInfo?.userId);
+  if (!isAdmin)
+    return res
+      .status(404)
+      .send({ error: 'Only admins are allowed to update payment.' });
+  const update = { 'players.$[elem].payment': updateBody.status };
+  const options = { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true };
+  const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+  if (!updatedMatch)
+    return res
+      .status(404)
+      .send({ error: 'Something went wrong please try again later.' });
+  res.status(200).send({ match: updatedMatch, message: 'Player payment status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -293,6 +364,10 @@ export const addPlayerToTeam = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
+  if (match.isCancelled || match.isLocked)
+    return res
+      .status(403)
+      .send({ error: 'Match is closed. Please create new match.' });
   const isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
@@ -328,6 +403,45 @@ export const addPlayerToTeam = async (req, res) => {
   }
 };
 
+export const cancelMatch = async (req, res) => {
+  const { matchId } = req.params;
+  const { chatId } = req.body;
+  const userInfo = req.session.userInfo;
+  try {
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
+  if (match?._doc?.deleted?.isDeleted)
+    return res
+      .status(404)
+      .send({ error: 'Match for chat group was not found.' });
+  const chat = await Chat.findOne({ _id: match.chatId._id }, '-deleted -__v');
+  if (!chat)
+    return res
+      .status(404)
+      .send({ error: 'Chat group was not found.' });
+  const isAdmin = chat.admins.includes(userInfo?.userId);
+  if (!isAdmin)
+    return res
+      .status(404)
+      .send({ error: 'Only admins are allowed to cancel a match.' });
+  if (match.isCancelled || match.isLocked)
+    return res
+      .status(403)
+      .send({ error: 'Match is closed.' });
+  const cancelMatch = await Match.findByIdAndUpdate(
+    matchId,
+    { isCancelled: true },
+    { new: true }
+    );
+  if (!cancelMatch)
+    return res
+      .status(404)
+      .send({ error: 'Something went wrong please try again later.' });
+  res.status(201).send({ message: 'Match has been cancelled.' });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
 export const deleteMatch = async (req, res) => {
   const { matchId } = req.params;
   const { chatId } = req.body;
@@ -338,8 +452,8 @@ export const deleteMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Chat group was not found.' });
-  let checkMatchExists = await Match.findById(matchId);
-  if (checkMatchExists?._doc?.deleted?.isDeleted)
+  let match = await Match.findById(matchId);
+  if (match?._doc?.deleted?.isDeleted)
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
@@ -347,7 +461,7 @@ export const deleteMatch = async (req, res) => {
   if (!isAdmin)
     return res
       .status(404)
-      .send({ error: 'Only admins are allowed to update a match.' });
+      .send({ error: 'Only admins are allowed to delete a match.' });
     const deleteMatch = await Match.findByIdAndDelete(matchId);
     if (!deleteMatch)
       return res

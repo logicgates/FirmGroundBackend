@@ -7,13 +7,13 @@ import crypto from 'crypto';
 
 const bucketName = process.env.S3_BUCKET_NAME;
 
-export const getStadiumLocations = async (req, res) => {
+export const getAllStadiums = async (req, res) => {
     try {
         const stadiums = await Stadium.find().sort('name');
         if (!stadiums)
             return res
                 .status(404)
-                .send({ error: 'No stadium location found.' });
+                .send({ error: 'No stadium details found.' });
         res.status(201).send({ stadiums });
     } catch (error) {
         errorMessage(res,error);

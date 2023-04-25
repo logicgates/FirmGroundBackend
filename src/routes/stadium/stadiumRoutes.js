@@ -1,6 +1,6 @@
 import express from 'express';
 import { 
-    getStadiumLocations,
+    getAllStadiums,
     addStadium,  
     updateStadium,
     deleteStadium
@@ -9,7 +9,7 @@ import { upload } from '../../config/multerConfig.js';
 
 const router = express.Router();
 
-router.get('/get-all', getStadiumLocations);
+router.get('/get-all', getAllStadiums);
 router.post('/add', upload.single('image'), addStadium);
 router.put('/update/:stadiumId', upload.single('image'), updateStadium);
 router.delete('/delete/:stadiumId', deleteStadium);
