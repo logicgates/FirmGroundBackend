@@ -15,7 +15,7 @@ export const createMatch = async (req, res) => {
   const updateBody = req.body;
   try {
     await matchSchema.validate(req.body);
-    const chatGroup = await Chat.findById(updateBody.chatId);
+    const chatGroup = await Chat.findOne({ _id: updateBody.chatId }, '-deleted -__v');
     if (!chatGroup)
       return res
         .status(404)
@@ -97,7 +97,7 @@ export const getAllMatches = async (req, res) => {
   const { chatId } = req.params
   const userInfo = req.session.userInfo;
   try {
-    const chatGroup = await Chat.findById(chatId);
+    const chatGroup = await Chat.findOne({ _id: chatId }, '-deleted -__v');
     if (!chatGroup)
       return res
         .status(404)
@@ -310,10 +310,6 @@ export const addPlayerToTeam = async (req, res) => {
       newTeamMembers.push({ _id: foundPlayer._id, name: foundPlayer.name });
     }
   });
-  if (newTeamMembers.length === 0) 
-    return res
-      .status(404)
-      .send({ error: 'None of the selected members are active players.' });
   const updatedMatch = await Match.findByIdAndUpdate(
     matchId,
     { 
