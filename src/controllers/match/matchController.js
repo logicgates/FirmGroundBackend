@@ -181,11 +181,11 @@ export const updateMatch = async (req, res) => {
   let fileName = '';
   let imageUrl = matchExists.pictureUrl;
   if (req.file) {
-    if (chat?._doc?.pictureUrl) {
+    if (matchExists?._doc?.pictureUrl) {
       const commandDel = new DeleteObjectCommand({
         Bucket: bucketName,
         Key: `${
-          chat?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+          matchExists?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
         }`,
       });
       await s3Client.send(commandDel);
@@ -419,7 +419,6 @@ export const addPlayerToTeam = async (req, res) => {
 
 export const cancelMatch = async (req, res) => {
   const { matchId } = req.params;
-  const { chatId } = req.body;
   const userInfo = req.session.userInfo;
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
@@ -458,37 +457,36 @@ export const cancelMatch = async (req, res) => {
 
 export const deleteMatch = async (req, res) => {
   const { matchId } = req.params;
-  const { chatId } = req.body;
   const userInfo = req.session.userInfo;
   try {
-  const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-  if (!chat)
-    return res
-      .status(404)
-      .send({ error: 'Chat group was not found.' });
-  let match = await Match.findById(matchId);
-  if (match?._doc?.deleted?.isDeleted)
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
+  if (!match)
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
-  let isAdmin = chat.admins.includes(userInfo?.userId);
+  const chat = await Chat.findOne({ _id: match.chatId._id }, '-deleted -__v');
+  if (!chat)
+    return res
+      .status(404)
+      .send({ error: 'Chat group for that match was not found.' });
+  const isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to delete a match.' });
-    const deleteMatch = await Match.findByIdAndDelete(matchId);
-    if (!deleteMatch)
-      return res
-        .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
-    if (chat?._doc?.pictureUrl) {
-      const commandDel = new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: `${
-          chat?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-        }`,
-      });
-      await s3Client.send(commandDel);
+  const deleteMatch = await Match.findByIdAndDelete(matchId);
+  if (!deleteMatch)
+    return res
+      .status(404)
+      .send({ error: 'Something went wrong please try again later.' });
+  if (match?._doc?.pictureUrl) {
+    const commandDel = new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: `${
+        match?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+      }`,
+    });
+    await s3Client.send(commandDel);
     }
     res.status(201).send({ message: 'Match has been deleted.' });
   } catch (error) {
