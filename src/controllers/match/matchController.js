@@ -52,6 +52,9 @@ export const createMatch = async (req, res) => {
     }
     const currentDate = new Date();
     const match = await Match.create({
+      ...updateBody,
+      date: updateBody.date,
+      kickOff: updateBody.kickOff,
       chatId: updateBody.chatId,
       players: [],
       activePlayers: [],
@@ -59,10 +62,9 @@ export const createMatch = async (req, res) => {
       teamB: [],
       pictureUrl: imageUrl,
       costPerPerson: 0,
-      lockTimer: moment(`${date} ${kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
+      lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
       isCancelled: false,
       isLocked: false,
-      ...updateBody,
       creationDate: currentDate,
     });
     // push every group member and admin in the player's array as an object with player id and status
