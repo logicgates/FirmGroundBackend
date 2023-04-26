@@ -53,8 +53,6 @@ export const createMatch = async (req, res) => {
     const currentDate = new Date();
     const match = await Match.create({
       ...updateBody,
-      date: updateBody.date,
-      kickOff: updateBody.kickOff,
       chatId: updateBody.chatId,
       players: [],
       activePlayers: [],
