@@ -246,7 +246,7 @@ export const updateMatch = async (req, res) => {
 
 export const updateParticiationStatus = async (req,res) => {
   const { matchId } = req.params;
-  const updateBody = req.body;
+  const { status } = req.body;
   const userInfo = req.session.userInfo;
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
@@ -280,15 +280,15 @@ export const updateParticiationStatus = async (req,res) => {
       .status(403)
       .send({ error: 'The match is no longer accepting new players.' });
   }
-  const update = { 'players.$[elem].participationStatus': updateBody.status };
+  const update = { 'players.$[elem].participationStatus': status };
   const options = { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true };
-  if (!isActivePlayer && updateBody.status === 'in') {
+  if (!isActivePlayer && status === 'in') {
     update['$push'] = { activePlayers: {
       _id: userInfo?.userId,
       name: user.firstName,
       profileUrl: user.profileUrl,
     } };
-  } else if (isActivePlayer && updateBody.status === 'out') {
+  } else if (isActivePlayer && status === 'out') {
     update['$pull'] = { activePlayers: {_id: userInfo?.userId} };
   }
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
@@ -314,7 +314,7 @@ export const updateParticiationStatus = async (req,res) => {
 
 export const updatePaymentStatus = async (req,res) => {
   const { matchId } = req.params;
-  const updateBody = req.body;
+  const { payment, memberId } = req.body;
   const userInfo = req.session.userInfo;
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
@@ -331,19 +331,19 @@ export const updatePaymentStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'User timeout. Please login and try again.' });
-  const player = match.players.some( player => player._id === userInfo?.userId );
+  const player = match.players.some( player => player._id === memberId );
   if (!player)
     return res
       .status(404)
-      .send({ error: 'You are not a part of this match.' });
+      .send({ error: 'Player is not a part of this match.' });
   const chat = await Chat.findOne({ _id: match.chatId._id }, '-deleted -__v');
   let isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update payment.' });
-  const update = { 'players.$[elem].payment': updateBody.status };
-  const options = { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true };
+  const update = { 'players.$[elem].payment': payment };
+  const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
   if (!updatedMatch)
     return res
