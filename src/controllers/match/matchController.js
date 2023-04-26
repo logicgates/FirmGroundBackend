@@ -289,7 +289,15 @@ export const updateParticiationStatus = async (req,res) => {
       profileUrl: user.profileUrl,
     } };
   } else if (isActivePlayer && status === 'out') {
-    update['$pull'] = { activePlayers: {_id: userInfo?.userId} };
+    const hasPaid = match.players.find((player) => player._id === userInfo?.userId)?.payment === 'paid';
+    if (hasPaid) {
+      return res
+        .status(403)
+        .send({ error: 'Unable to leave after payment completed.' });
+    }
+    else {
+      update['$pull'] = { activePlayers: {_id: userInfo?.userId} };
+    }
   }
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
   if (!updatedMatch)
