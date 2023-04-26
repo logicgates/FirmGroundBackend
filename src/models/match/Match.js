@@ -22,7 +22,6 @@ const matchSchema = new Schema({
         },
         payment: {
             type: String,
-            required: true
         }
     }],
     activePlayers: [{ // Players with participation status as 'in' only
@@ -36,7 +35,6 @@ const matchSchema = new Schema({
         },
         profileUrl: {
             type: String,
-            required: true
         }
     }],
     teamA: [{ // Players with participation status as 'in' only
@@ -133,11 +131,17 @@ const matchSchema = new Schema({
     creationDate: {
         type: String,
     },
+    lockTimer: {
+        type: Number,
+        default: 0,
+    },
     isLocked: {
         type: Boolean,
+        default: false,
     },
     isCancelled: {
         type: Boolean,
+        default: false,
     }
 });
 
@@ -145,6 +149,25 @@ matchSchema.methods.isOpenForPlayers = function () {
     const matchDateTime = moment(`${this.date} ${this.meetTime}`, 'DD-MM-YYYY hh:mm A');
     const currentDateTime = moment();
     return currentDateTime.isBefore(matchDateTime);
+};
+
+matchSchema.methods.updateLockTimer = async function() {
+    const match = this;
+    const currentTime = moment();
+    const kickOffTime = moment(`${match.date} ${match.kickOff}`, 'DD-MM-YYYY hh:mm A');
+    if (match.isCancelled) {
+        match.lockTimer = 0;
+    }
+    else if (kickOffTime.isBefore(currentTime.subtract(72, 'hours'))) {
+        match.isLocked = true;
+        match.lockTimer = 0;
+    }
+    else {
+        const lockTimeRemaining = Math.ceil(kickOffTime.diff(currentTime, 'minutes'));
+        match.isLocked = false;
+        match.lockTimer = lockTimeRemaining;
+    }
+    await match.save();
 };
 
 export default mongoose.model('Match', matchSchema);

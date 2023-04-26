@@ -1,5 +1,5 @@
 import { errorMessage } from '../../config/config.js';
-import Stadium from '../../models/stadium/stadium.js';
+import Stadium from '../../models/stadium/Stadium.js';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
 import sharp from 'sharp';
