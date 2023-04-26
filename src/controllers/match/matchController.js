@@ -7,6 +7,7 @@ import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
 import sharp from 'sharp';
 import crypto from 'crypto';
+import moment from 'moment';
 
 const bucketName = process.env.S3_BUCKET_NAME;
 
@@ -58,6 +59,7 @@ export const createMatch = async (req, res) => {
       teamB: [],
       pictureUrl: imageUrl,
       costPerPerson: 0,
+      lockTimer: moment(`${date} ${kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
       isCancelled: false,
       isLocked: false,
       ...updateBody,
@@ -115,7 +117,11 @@ export const getAllMatches = async (req, res) => {
         .send({ error: 'You are not a part of this chat group.' });
     const groupMatches = await Match.find({ chatId }); // Find all matches for that chat group
     if (!groupMatches)
-      return res.status(404).send({ error: 'No matches found for the chat group.' });
+      return res
+        .status(404)
+        .send({ error: 'No matches found for the chat group.' });
+    for (const match of groupMatches) // Updates the lock timer for each match
+      await match.updateLockTimer();
     res.status(200).send({ groupMatches });
   } catch (error) {
     errorMessage(res, error);
@@ -166,7 +172,7 @@ export const updateMatch = async (req, res) => {
   if (matchExists.isCancelled || matchExists.isLocked)
     return res
       .status(403)
-      .send({ error: 'This match is cancelled. Please create new match.' });
+      .send({ error: 'This match is closed. Please create new match.' });
   const isAdmin = chat.admins.includes(userInfo?.userId);
   if (!isAdmin)
     return res

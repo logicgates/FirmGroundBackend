@@ -133,11 +133,17 @@ const matchSchema = new Schema({
     creationDate: {
         type: String,
     },
+    lockTimer: {
+        type: Number,
+        default: 0,
+    },
     isLocked: {
         type: Boolean,
+        default: false,
     },
     isCancelled: {
         type: Boolean,
+        default: false,
     }
 });
 
@@ -146,5 +152,21 @@ matchSchema.methods.isOpenForPlayers = function () {
     const currentDateTime = moment();
     return currentDateTime.isBefore(matchDateTime);
 };
+
+matchSchema.methods.updateLockTimer = async function() {
+    const match = this;
+    const currentTime = moment();
+    const kickOffTime = moment(`${match.date} ${match.kickOff}`, 'DD-MM-YYYY hh:mm A');
+    if (kickOffTime.isBefore(currentTime.subtract(72, 'hours'))) {
+        match.isLocked = true;
+        match.lockTimer = 0;
+    }
+    else {
+        const lockTimeRemaining = Math.ceil(kickOffTime.diff(currentTime, 'minutes'));
+        match.isLocked = false;
+        match.lockTimer = lockTimeRemaining;
+    }
+    await match.save();
+}
 
 export default mongoose.model('Match', matchSchema);
