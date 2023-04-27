@@ -27,11 +27,9 @@ const matchSchema = new Schema({
     activePlayers: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
         phone: {
             type: String,
@@ -43,22 +41,30 @@ const matchSchema = new Schema({
     teamA: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
+        phone: {
+            type: String,
+        },
+        profileUrl: {
+            type: String,
+        }
     }],
     teamB: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
+        phone: {
+            type: String,
+        },
+        profileUrl: {
+            type: String,
+        }
     }],
     title: {
         type: String,
@@ -172,5 +178,16 @@ matchSchema.methods.updateLockTimer = async function() {
     }
     await match.save();
 };
+
+matchSchema.methods.updateCostPerPerson = async function() {
+    const match = this;
+    const activePlayers = match.players.filter(
+        (player) => player.participationStatus === 'in' ||  player.participationStatus === 'pending'
+    );
+    const numActivePlayers = activePlayers.length;
+    const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
+    match.costPerPerson = costPerPerson.toFixed(1);
+    await match.save();
+}
 
 export default mongoose.model('Match', matchSchema);

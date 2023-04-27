@@ -45,7 +45,3 @@ export const updateMatchSchema = object({
     costPerPerson: number().positive().integer(),
     recurring: string(),
 });
-
-export const addPlayerToTeamSchema = object({
-    team: string().required('Team A or B not selected.')
-});
