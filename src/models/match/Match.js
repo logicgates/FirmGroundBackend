@@ -33,6 +33,9 @@ const matchSchema = new Schema({
             type: String,
             required: true
         },
+        phone: {
+            type: String,
+        },
         profileUrl: {
             type: String,
         }

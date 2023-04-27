@@ -73,7 +73,7 @@ export const createMatch = async (req, res) => {
         users.forEach(user => {
           match.players.push({
             _id: user._id,
-            name: user.firstName,
+            name: user.firstName + ' ' + user.lastName,
             participationStatus: 'pending',
             payment: 'unpaid',
           });
@@ -87,7 +87,7 @@ export const createMatch = async (req, res) => {
         users.forEach(user => {
           match.players.push({
             _id: user._id,
-            name: user.firstName,
+            name: user.firstName + ' ' + user.lastName,
             participationStatus: 'pending',
             payment: 'unpaid',
           });
@@ -222,6 +222,7 @@ export const updateMatch = async (req, res) => {
       turf: updateBody.turf,
       boots: updateBody.boots,
       condition: updateBody.condition,
+      lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
       cost: updateBody.cost,
       recurring: updateBody.recurring,
     }, 
@@ -285,7 +286,8 @@ export const updateParticiationStatus = async (req,res) => {
   if (!isActivePlayer && status === 'in') {
     update['$push'] = { activePlayers: {
       _id: userInfo?.userId,
-      name: user.firstName,
+      name: user.firstName + ' ' + user.lastName,
+      phone: user.phone,
       profileUrl: user.profileUrl,
     } };
   } else if (isActivePlayer && status === 'out') {
@@ -394,9 +396,9 @@ export const addPlayerToTeam = async (req, res) => {
   const activePlayers = match.activePlayers;
   const newTeamMembers = [];
   members.forEach(memberId => {
-    const foundPlayer = activePlayers.find(player => player._id.toString() === memberId.toString());
+    let foundPlayer = activePlayers.find(player => player._id.toString() === memberId.toString());
     if (foundPlayer) {
-      newTeamMembers.push({ _id: foundPlayer._id, name: foundPlayer.name });
+      newTeamMembers.push(foundPlayer);
     }
   });
   const updatedMatch = await Match.findByIdAndUpdate(
@@ -412,6 +414,54 @@ export const addPlayerToTeam = async (req, res) => {
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
   res.status(200).send({ match: updatedMatch, message: `Player added to team ${team}.` });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const removePlayerFromTeam = async (req, res) => {
+  const { matchId } = req.params;
+  const { chatId, team, memberId } = req.body;
+  const userInfo = req.session.userInfo;
+  try {
+  const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
+  if (!chat)
+    return res
+      .status(404)
+      .send({ error: 'Chat group was not found.' });
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
+  if (!match)
+    return res
+      .status(404)
+      .send({ error: 'Match for chat group was not found.' });
+  if (match.isCancelled || match.isLocked)
+    return res
+      .status(403)
+      .send({ error: 'Match is closed. Please create new match.' });
+  const isAdmin = chat.admins.includes(userInfo?.userId);
+  if (!isAdmin)
+    return res
+      .status(404)
+      .send({ error: 'Only admins are allowed to remove players.' });
+  const activePlayers = ( team === 'A' ? match.teamA : match.teamB );
+  const foundPlayer = activePlayers.find(player => player._id.toString() === memberId.toString());
+  if (!foundPlayer)
+    return res
+      .status(404)
+      .send({ error: `Unable to find player of team ${team}.` });
+  const updatedMatch = await Match.findByIdAndUpdate(
+    matchId,
+    { 
+      $push: { activePlayers: foundPlayer },
+      $pull: { [`team${team}`]: { _id: memberId } },
+    },
+    { new: true },
+  );
+  if (!updatedMatch)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+  res.status(200).send({ match: updatedMatch, message: `Player removed from team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
