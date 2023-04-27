@@ -179,4 +179,15 @@ matchSchema.methods.updateLockTimer = async function() {
     await match.save();
 };
 
+matchSchema.methods.updateCostPerPerson = async function() {
+    const match = this;
+    const activePlayers = match.players.filter(
+        (player) => player.participationStatus === 'in' ||  player.participationStatus === 'pending'
+    );
+    const numActivePlayers = activePlayers.length;
+    const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
+    match.costPerPerson = costPerPerson;
+    await match.save();
+}
+
 export default mongoose.model('Match', matchSchema);

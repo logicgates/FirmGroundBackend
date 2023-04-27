@@ -2,7 +2,7 @@ import { errorMessage } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
-import { matchSchema, updateMatchSchema, addPlayerToTeamSchema } from '../../schema/chat/chatSchema.js'
+import { matchSchema, updateMatchSchema } from '../../schema/chat/chatSchema.js'
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
 import sharp from 'sharp';
@@ -120,8 +120,10 @@ export const getAllMatches = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'No matches found for the chat group.' });
-    for (const match of groupMatches) // Updates the lock timer for each match
+    for (const match of groupMatches) { // Updates the lock timer for each match
       await match.updateLockTimer();
+      await match.updateCostPerPerson();
+    }
     res.status(200).send({ groupMatches });
   } catch (error) {
     errorMessage(res, error);
@@ -301,20 +303,11 @@ export const updateParticiationStatus = async (req,res) => {
     }
   }
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+  await updatedMatch.updateCostPerPerson();
   if (!updatedMatch)
     return res
       .status(404)
       .send({ error: 'Something went wrong please try again later.' });
-  const activePlayers = updatedMatch.players.filter(
-      (player) => player.participationStatus === 'in'
-    );
-  const numActivePlayers = activePlayers.length;
-  const costPerPerson = numActivePlayers > 0 ? updatedMatch.cost / numActivePlayers : 0;
-  await Match.findOneAndUpdate(
-    { _id: matchId },
-    { costPerPerson },
-    { new: true }
-  );
   res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -340,7 +333,7 @@ export const updatePaymentStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'User timeout. Please login and try again.' });
-  const player = match.players.some( player => player._id === memberId );
+  const player = match.players.find( player => player._id === memberId );
   if (!player)
     return res
       .status(404)
@@ -351,6 +344,10 @@ export const updatePaymentStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update payment.' });
+  if (!player.participationStatus === 'in')
+    return res
+      .status(403)
+      .send({ error: 'Player is not active.' });
   const update = { 'players.$[elem].payment': payment };
   const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
