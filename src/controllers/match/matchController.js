@@ -60,6 +60,7 @@ export const createMatch = async (req, res) => {
       teamB: [],
       pictureUrl: imageUrl,
       costPerPerson: 0,
+      collected: 0,
       lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
       isCancelled: false,
       isLocked: false,

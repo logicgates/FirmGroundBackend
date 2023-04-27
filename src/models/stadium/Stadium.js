@@ -17,9 +17,17 @@ const stadiumSchema = new Schema({
         type: Number,
         trim: true,
     },
-    cost: {
-        type: Number,
+    turf: {
+        type: String,
         trim: true,
+    },
+    boots: {
+        type: String,
+        trim: true
+    },
+    condition: {
+        type: String,
+        trim: true
     }
 },
 { timestamps: true }
