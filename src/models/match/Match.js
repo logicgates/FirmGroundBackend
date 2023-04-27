@@ -186,7 +186,7 @@ matchSchema.methods.updateCostPerPerson = async function() {
     );
     const numActivePlayers = activePlayers.length;
     const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
-    match.costPerPerson = costPerPerson;
+    match.costPerPerson = costPerPerson.toFixed(1);
     await match.save();
 }
 
