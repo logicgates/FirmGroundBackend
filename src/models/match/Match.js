@@ -27,11 +27,9 @@ const matchSchema = new Schema({
     activePlayers: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
         phone: {
             type: String,
@@ -43,22 +41,30 @@ const matchSchema = new Schema({
     teamA: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
+        phone: {
+            type: String,
+        },
+        profileUrl: {
+            type: String,
+        }
     }],
     teamB: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
+        phone: {
+            type: String,
+        },
+        profileUrl: {
+            type: String,
+        }
     }],
     title: {
         type: String,

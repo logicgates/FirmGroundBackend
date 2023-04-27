@@ -67,7 +67,7 @@ export const createMatch = async (req, res) => {
     });
     // push every group member and admin in the player's array as an object with player id and status
     await User.find({ _id: { $in: chatGroup.admins } })
-    .select('firstName')
+    .select('firstName lastName')
     .then(
       users => {
         users.forEach(user => {
@@ -81,7 +81,7 @@ export const createMatch = async (req, res) => {
     });
 
     await User.find({ _id: { $in: chatGroup.membersList } })
-    .select('firstName')
+    .select('firstName lastName')
     .then(
       users => {
         users.forEach(user => {
@@ -276,11 +276,10 @@ export const updateParticiationStatus = async (req,res) => {
     return res
       .status(403)
       .send({ error: 'You are already a part of a team.' });
-  if (!match.isOpenForPlayers()) {
+  if (!match.isOpenForPlayers())
     return res
       .status(403)
       .send({ error: 'The match is no longer accepting new players.' });
-  }
   const update = { 'players.$[elem].participationStatus': status };
   const options = { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true };
   if (!isActivePlayer && status === 'in') {
