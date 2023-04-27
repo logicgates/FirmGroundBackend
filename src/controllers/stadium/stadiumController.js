@@ -99,7 +99,9 @@ export const updateStadium = async (req, res) => {
                 location: req.body?.location,
                 pictureUrl: imageUrl,
                 pitches: req.body?.pitches,
-                cost: req.body?.cost,
+                turf: req.body?.turf,
+                boots: req.body?.boots,
+                condition: req.body?.condition,
             }, 
             { new: true }
         );
