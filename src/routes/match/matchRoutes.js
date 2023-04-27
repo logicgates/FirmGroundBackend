@@ -8,7 +8,8 @@ import {
     getAllMatches, 
     updateMatch, 
     updateParticiationStatus, 
-    updatePaymentStatus
+    updatePaymentStatus,
+    removePlayerFromTeam
 } from '../../controllers/match/matchController.js';
 import { upload } from '../../config/multerConfig.js';
 
@@ -21,6 +22,7 @@ router.put('/update/:matchId', upload.single('image'), updateMatch);
 router.put('/update-status/:matchId', updateParticiationStatus);
 router.put('/update-payment/:matchId', updatePaymentStatus)
 router.put('/add-to-team/:matchId', addPlayerToTeam);
+router.put('/remove-from-team/:matchId', removePlayerFromTeam);
 router.put('/cancel/:matchId', cancelMatch);
 router.delete('/delete/:matchId', deleteMatch);
 
