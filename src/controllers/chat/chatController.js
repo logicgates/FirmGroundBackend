@@ -24,6 +24,7 @@ export const createChat = async (req, res) => {
           $and: [
             { membersList: userInfo?.userId },
             { membersList: members[0] },
+            { isPrivate: true }
           ],
         },
         '-deleted -__v'
