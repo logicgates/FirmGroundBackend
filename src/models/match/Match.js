@@ -133,6 +133,10 @@ const matchSchema = new Schema({
         type: Number,
         trim: true,
     },
+    collected: {
+        type: Number,
+        trim: true
+    },
     recurring: {
         type: String,
         trim: true,
@@ -187,6 +191,7 @@ matchSchema.methods.updateCostPerPerson = async function() {
     const numActivePlayers = activePlayers.length;
     const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
     match.costPerPerson = costPerPerson.toFixed(1);
+    match.collected = costPerPerson*numActivePlayers;
     await match.save();
 }
 
