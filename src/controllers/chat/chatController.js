@@ -14,6 +14,10 @@ const bucketName = process.env.S3_BUCKET_NAME;
 export const createChat = async (req, res) => {
   const { members } = req.body;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     let chatExists = false;
     let checkIfPrivate = members.length > 1 ? false : true; // Checking if chat is private or group
@@ -66,14 +70,12 @@ export const createChat = async (req, res) => {
 
 export const getChats = async (req, res) => {
   const userInfo = req.session.userInfo;
-  try {
-    const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v');
-    if (!user)
+  if (!userInfo)
       return res
         .status(401)
-        .send({ error: 'User timeout. Please login.' });
+        .send({ error: 'User timeout. Please login again.' });
+  try {
     const chats = await Chat.find(
-      // Find all chats the user is in as admin or member
       {
         $or: [{ admins: userInfo?.userId }, { membersList: userInfo?.userId }],
       },
