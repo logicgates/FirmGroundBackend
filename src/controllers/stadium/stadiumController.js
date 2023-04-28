@@ -45,8 +45,10 @@ export const addStadium = async (req, res) => {
             imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}stadium/${fileName}.${fileMimetype}`;
         }
         const stadium = await Stadium.create({
+            name: req.body?.name,
+            location: req.body?.location,
             pictureUrl: imageUrl,
-            ...req.body,
+            pitches: JSON.parse(req.body?.pitches),
         });
         if (!stadium)
             return res
@@ -77,34 +79,32 @@ export const updateStadium = async (req, res) => {
                     }`,
                 });
                 await s3Client.send(commandDel);
-                }
-                fileName = crypto.randomBytes(32).toString('hex');
-                const fileMimetype = req.file?.mimetype.split('/')[1];
-                const buffer = await sharp(req.file?.buffer)
-                    .resize({ width: 960, height: 540, fit: 'contain' })
-                    .toBuffer();
-                const command = new PutObjectCommand({
-                    Bucket: bucketName,
-                    Key: `stadium/${fileName}.${fileMimetype}`,
-                    Body: buffer,
-                    ContentType: req.file?.mimetype,
-                });
-                await s3Client.send(command);
-                imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}stadium/${fileName}.${fileMimetype}`;
             }
-        const updatestadium = await Stadium.findByIdAndUpdate(
-            stadiumId,
-            {
-                name: req.body?.name,
-                location: req.body?.location,
-                pictureUrl: imageUrl,
-                pitches: req.body?.pitches,
-                turf: req.body?.turf,
-                boots: req.body?.boots,
-                condition: req.body?.condition,
-            }, 
-            { new: true }
-        );
+            fileName = crypto.randomBytes(32).toString('hex');
+            const fileMimetype = req.file?.mimetype.split('/')[1];
+            const buffer = await sharp(req.file?.buffer)
+                .resize({ width: 960, height: 540, fit: 'contain' })
+                .toBuffer();
+            const command = new PutObjectCommand({
+                Bucket: bucketName,
+                Key: `stadium/${fileName}.${fileMimetype}`,
+                Body: buffer,
+                ContentType: req.file?.mimetype,
+            });
+            await s3Client.send(command);
+            imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}stadium/${fileName}.${fileMimetype}`;
+        }
+        const updatestadium = await Stadium.create({
+            name: req.body?.name,
+            location: req.body?.location,
+            pictureUrl: imageUrl,
+            pitches: [],
+        });
+        const pitches = req.body?.pitches;
+        pitches.forEach(pitch => {
+            updatestadium.pitches.push(pitch);
+        });
+        updatestadium.save();
         if (!updatestadium)
             return res
                 .status()

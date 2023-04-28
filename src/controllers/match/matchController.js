@@ -3,13 +3,7 @@ import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
 import { matchSchema, updateMatchSchema } from '../../schema/chat/chatSchema.js'
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { s3Client } from '../../config/awsConfig.js';
-import sharp from 'sharp';
-import crypto from 'crypto';
 import moment from 'moment';
-
-const bucketName = process.env.S3_BUCKET_NAME;
 
 export const createMatch = async (req, res) => {
   const userInfo = req.session.userInfo;
@@ -33,23 +27,6 @@ export const createMatch = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Match with that title already exists.' });
-    let imageUrl = '';
-    let fileName = '';
-    if (req.file) {
-      fileName = crypto.randomBytes(32).toString('hex');
-      const fileMimetype = req.file?.mimetype.split('/')[1];
-      const buffer = await sharp(req.file?.buffer)
-        .resize({ width: 960, height: 540, fit: 'contain' })
-        .toBuffer();
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: `match/${fileName}.${fileMimetype}`,
-        Body: buffer,
-        ContentType: req.file?.mimetype,
-      });
-      await s3Client.send(command);
-      imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}match/${fileName}.${fileMimetype}`;
-    }
     const currentDate = new Date();
     const match = await Match.create({
       ...updateBody,
@@ -58,8 +35,7 @@ export const createMatch = async (req, res) => {
       activePlayers: [],
       teamA: [],
       teamB: [],
-      pictureUrl: imageUrl,
-      costPerPerson: 0,
+      cost: 0,
       collected: 0,
       lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
       isCancelled: false,
@@ -94,6 +70,7 @@ export const createMatch = async (req, res) => {
           });
         });
     });
+    match.cost = match.costPerPerson * match.players.length;
     match.save();
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
@@ -123,7 +100,7 @@ export const getAllMatches = async (req, res) => {
         .send({ error: 'No matches found for the chat group.' });
     for (const match of groupMatches) { // Updates the lock timer for each match
       await match.updateLockTimer();
-      await match.updateCostPerPerson();
+      await match.updatePaymentCollected();
     }
     res.status(200).send({ groupMatches });
   } catch (error) {
@@ -181,38 +158,12 @@ export const updateMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update a match.' });
-  let fileName = '';
-  let imageUrl = matchExists.pictureUrl;
-  if (req.file) {
-    if (matchExists?._doc?.pictureUrl) {
-      const commandDel = new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: `${
-          matchExists?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-        }`,
-      });
-      await s3Client.send(commandDel);
-    }
-    fileName = crypto.randomBytes(32).toString('hex');
-    const fileMimetype = req.file?.mimetype.split('/')[1];
-    const buffer = await sharp(req.file?.buffer)
-      .resize({ width: 960, height: 540, fit: 'contain' })
-      .toBuffer();
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: `match/${fileName}.${fileMimetype}`,
-      Body: buffer,
-      ContentType: req.file?.mimetype,
-    });
-    await s3Client.send(command);
-    imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}match/${fileName}.${fileMimetype}`;
-  }
   const match = await Match.findByIdAndUpdate(
     matchId,
     {
       title: updateBody.title,
       location: updateBody.location,
-      pictureUrl: imageUrl,
+      pictureUrl: updateBody.pictureUrl,
       type: updateBody.type,
       date: updateBody.date,
       meetTime: updateBody.meetTime,
@@ -226,18 +177,12 @@ export const updateMatch = async (req, res) => {
       boots: updateBody.boots,
       condition: updateBody.condition,
       lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
-      cost: updateBody.cost,
+      costPerPerson: updateBody.costPerPerson,
       recurring: updateBody.recurring,
     }, 
     { new: true }
   );
-  const activePlayers = match.players.filter(
-    (player) => player.participationStatus === 'in'
-  );
-  const numActivePlayers = activePlayers.length;
-  const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
-  match.costPerPerson = costPerPerson;
-  match.save();
+  await match.updatePaymentCollected();
   if (!match)
       return res
         .status(404)
@@ -304,7 +249,7 @@ export const updateParticiationStatus = async (req,res) => {
     }
   }
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
-  await updatedMatch.updateCostPerPerson();
+  await updatedMatch.updatePaymentCollected();
   if (!updatedMatch)
     return res
       .status(404)
@@ -526,15 +471,6 @@ export const deleteMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Something went wrong please try again later.' });
-  if (match?._doc?.pictureUrl) {
-    const commandDel = new DeleteObjectCommand({
-      Bucket: bucketName,
-      Key: `${
-        match?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-      }`,
-    });
-    await s3Client.send(commandDel);
-    }
     res.status(201).send({ message: 'Match has been deleted.' });
   } catch (error) {
     errorMessage(res, error);
