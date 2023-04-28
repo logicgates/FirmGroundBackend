@@ -197,7 +197,11 @@ matchSchema.methods.updatePaymentCollected = async function() {
     const paidPlayers = match.players.filter(
         (player) => player.payment === 'paid'
     );
-    match.collected = match.costPerPerson * paidPlayers; // Collected amount
+    if (!paidPlayers){
+        match.collected = 0;
+    } else {
+        match.collected = match.costPerPerson * paidPlayers; // Collected amount
+    }
     await match.save();
 }
 
