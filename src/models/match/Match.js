@@ -183,15 +183,17 @@ matchSchema.methods.updateLockTimer = async function() {
     await match.save();
 };
 
-matchSchema.methods.updateCostPerPerson = async function() {
+matchSchema.methods.updatePaymentCollected = async function() {
     const match = this;
     const activePlayers = match.players.filter(
         (player) => player.participationStatus === 'in' ||  player.participationStatus === 'pending'
     );
     const numActivePlayers = activePlayers.length;
-    const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
-    match.costPerPerson = costPerPerson.toFixed(1);
-    match.collected = costPerPerson*numActivePlayers;
+    match.cost = match.costPerPerson * numActivePlayers // Total cost
+    const paidPlayers = match.players.filter(
+        (player) => player.payment === 'paid'
+    );
+    match.collected = match.costPerPerson * paidPlayers; // Collected amount
     await match.save();
 }
 

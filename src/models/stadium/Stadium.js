@@ -13,22 +13,24 @@ const stadiumSchema = new Schema({
         type: String,
         trim: true,
     },
-    pitches: {
-        type: Number,
-        trim: true,
-    },
-    turf: {
-        type: String,
-        trim: true,
-    },
-    boots: {
-        type: String,
-        trim: true
-    },
-    condition: {
-        type: String,
-        trim: true
-    }
+    pitches: [{
+        pitchNo: {
+            type: Number,
+            trim: true,
+        },
+        turf: {
+            type: String,
+            trim: true,
+        },
+        boots: {
+            type: String,
+            trim: true
+        },
+        condition: {
+            type: String,
+            trim: true
+        }
+    }],
 },
 { timestamps: true }
 );
