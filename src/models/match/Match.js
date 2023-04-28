@@ -70,7 +70,11 @@ const matchSchema = new Schema({
         type: String,
         trim: true,
     },
-    location: { // Stadium
+    stadiumId: {
+        type: String,
+        trim: true,
+    },
+    location: {
         type: String,
         trim: true,
     },
@@ -78,7 +82,7 @@ const matchSchema = new Schema({
         type: String,
         trim: true,
     },
-    type: { // Type of match
+    type: {
         type: String,
         trim: true,
     },

@@ -70,7 +70,7 @@ export const createMatch = async (req, res) => {
           });
         });
     });
-    match.cost = match.costPerPerson * match.players.length();
+    match.cost = match.costPerPerson * match.players.length;
     match.save();
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
