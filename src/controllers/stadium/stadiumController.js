@@ -94,22 +94,46 @@ export const updateStadium = async (req, res) => {
             await s3Client.send(command);
             imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}stadium/${fileName}.${fileMimetype}`;
         }
-        const updatestadium = await Stadium.create({
-            name: req.body?.name,
-            location: req.body?.location,
-            pictureUrl: imageUrl,
-            pitches: [],
-        });
-        const pitches = req.body?.pitches;
-        pitches.forEach(pitch => {
-            updatestadium.pitches.push(pitch);
-        });
-        updatestadium.save();
+        const updatestadium = await Stadium.findByIdAndUpdate(
+            stadiumId,
+            {
+                name: req.body?.name,
+                location: req.body?.location,
+                pictureUrl: imageUrl,
+                pitches: JSON.parse(req.body?.pitches),
+            },
+            { new: true }
+        );
         if (!updatestadium)
             return res
                 .status()
                 .send({ error: 'Something went wrong. Please try again later.'});
         res.status(201).send({ stadium: updatestadium, message: 'Stadium details have been updated.' });
+    } catch (error) {
+        errorMessage(res,error);
+    }
+};
+
+export const updatePitchDetails = async (req, res) => {
+    const { stadiumId } = req.params;
+    try {
+        const stadium = await Stadium.findOne({ _id: stadiumId }, '-deleted -__v');
+        if (!stadium)
+            return res
+                .status(400)
+                .send({ error: 'Stadium details do not exist.' });
+        const update = {
+            'pitches.$[elem].turf': req.body?.turf,
+            'pitches.$[elem].boots': req.body?.boots,
+            'pitches.$[elem].condition': req.body?.condition
+        };
+        const options = { arrayFilters: [{ 'elem._id': req.body?.pitchNo }], new: true };
+        const updatedPitch = await Stadium.findByIdAndUpdate(stadiumId, update, options);
+        if (!updatedPitch)
+            return res
+                .status()
+                .send({ error: 'Something went wrong. Please try again later.'});
+        res.status(201).send({ stadium: updatedPitch, message: 'Pitch details have been updated.' });
     } catch (error) {
         errorMessage(res,error);
     }
