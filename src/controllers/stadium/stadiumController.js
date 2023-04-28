@@ -94,17 +94,16 @@ export const updateStadium = async (req, res) => {
             await s3Client.send(command);
             imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}stadium/${fileName}.${fileMimetype}`;
         }
-        const updatestadium = await Stadium.create({
-            name: req.body?.name,
-            location: req.body?.location,
-            pictureUrl: imageUrl,
-            pitches: [],
-        });
-        const pitches = req.body?.pitches;
-        pitches.forEach(pitch => {
-            updatestadium.pitches.push(pitch);
-        });
-        updatestadium.save();
+        const updatestadium = await Stadium.findByIdAndUpdate(
+            stadiumId,
+            {
+                name: req.body?.name,
+                location: req.body?.location,
+                pictureUrl: imageUrl,
+                pitches: JSON.parse(req.body?.pitches),
+            },
+            { new: true }
+        );
         if (!updatestadium)
             return res
                 .status()

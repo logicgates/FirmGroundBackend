@@ -14,6 +14,10 @@ const stadiumSchema = new Schema({
         trim: true,
     },
     pitches: [{
+        _id: {
+            type: String,
+            trim: true,
+        },
         pitchNo: {
             type: Number,
             trim: true,
