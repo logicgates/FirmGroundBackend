@@ -1,7 +1,6 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
-import ChatMsg from '../../models/chatMessages/ChatMessage.js';
 // import { chatMessageSchema } from '../../schema/chat/chatSchema.js';
 import db from '../../config/firebaseConfig.js';
 
@@ -35,12 +34,12 @@ export const createMessage = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     // await chatMessageSchema.validate(req.body);
-    const chatExists = await Chat.find({ chatId }, '-deleted -__v')
+    const chatExists = await Chat.findOne({ _id: chatId }, '-deleted -__v')
     if (!chatExists)
       return res
         .status(404)
         .send({ error: 'Chat not found.' });
-    const user = await User.findById(userInfo?.userId);
+    const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v')
     const newMessage = {
       userId: userInfo?.userId,
       userName: user.firstName + ' ' + user.lastName,
