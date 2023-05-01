@@ -27,11 +27,9 @@ const matchSchema = new Schema({
     activePlayers: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
         phone: {
             type: String,
@@ -43,28 +41,40 @@ const matchSchema = new Schema({
     teamA: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
+        phone: {
+            type: String,
+        },
+        profileUrl: {
+            type: String,
+        }
     }],
     teamB: [{ // Players with participation status as 'in' only
         _id: {
             type: String,
-            required: true,
         },
         name: {
             type: String,
-            required: true
         },
+        phone: {
+            type: String,
+        },
+        profileUrl: {
+            type: String,
+        }
     }],
     title: {
         type: String,
         trim: true,
     },
-    location: { // Stadium
+    stadiumId: {
+        type: String,
+        trim: true,
+    },
+    location: {
         type: String,
         trim: true,
     },
@@ -72,7 +82,7 @@ const matchSchema = new Schema({
         type: String,
         trim: true,
     },
-    type: { // Type of match
+    type: {
         type: String,
         trim: true,
     },
@@ -127,6 +137,10 @@ const matchSchema = new Schema({
         type: Number,
         trim: true,
     },
+    collected: {
+        type: Number,
+        trim: true
+    },
     recurring: {
         type: String,
         trim: true,
@@ -172,5 +186,20 @@ matchSchema.methods.updateLockTimer = async function() {
     }
     await match.save();
 };
+
+matchSchema.methods.updatePaymentCollected = async function() {
+    const match = this;
+    const activePlayers = match.players.filter(
+        (player) => player.participationStatus === 'in' ||  player.participationStatus === 'pending'
+    );
+    const numActivePlayers = activePlayers.length;
+    match.cost = match.costPerPerson * numActivePlayers // Total cost
+    const paidPlayers = match.players.filter(
+        (player) => player.payment === 'paid'
+    );
+    const numPaidPlayers = paidPlayers.length;
+    match.collected = match.costPerPerson * numPaidPlayers; // Collected amount
+    await match.save();
+}
 
 export default mongoose.model('Match', matchSchema);

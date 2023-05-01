@@ -15,13 +15,13 @@ export const matchSchema = object({
     duration: string().required('Duration of match is required.'),
     shift: string().required('Required time of day, morning/evening/night.'),
     pitchNumber: string().required('Required pitch number.'),
-    teamAColor: string().required('Color of team A required.'),
-    teamBColor: string().required('Color of team B required.'),
+    teamAColor: string(),
+    teamBColor: string(),
     turf: string(),
     boots: string(),
     condition: string(),
-    cost: number().positive().integer(),
-    costPerPerson: number().positive().integer(),
+    costPerPerson: number(),
+    collected: number(),
     recurring: string(),
 });
 
@@ -36,16 +36,12 @@ export const updateMatchSchema = object({
     duration: string().required('Duration of match is required.'),
     shift: string().required('Required time of day, morning/evening/night.'),
     pitchNumber: string().required('Required pitch number.'),
-    teamAColor: string().required('Color of team A required.'),
-    teamBColor: string().required('Color of team B required.'),
+    teamAColor: string(),
+    teamBColor: string(),
     turf: string(),
     boots: string(),
     condition: string(),
-    cost: number().positive().integer(),
-    costPerPerson: number().positive().integer(),
+    costPerPerson: number(),
+    collected: number(),
     recurring: string(),
-});
-
-export const addPlayerToTeamSchema = object({
-    team: string().required('Team A or B not selected.')
 });

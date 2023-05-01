@@ -2,18 +2,16 @@ import { errorMessage } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
-import { matchSchema, updateMatchSchema, addPlayerToTeamSchema } from '../../schema/chat/chatSchema.js'
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { s3Client } from '../../config/awsConfig.js';
-import sharp from 'sharp';
-import crypto from 'crypto';
+import { matchSchema, updateMatchSchema } from '../../schema/chat/chatSchema.js'
 import moment from 'moment';
 
-const bucketName = process.env.S3_BUCKET_NAME;
-
 export const createMatch = async (req, res) => {
-  const userInfo = req.session.userInfo;
   const updateBody = req.body;
+  const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     await matchSchema.validate(req.body);
     const chatGroup = await Chat.findOne({ _id: updateBody.chatId }, '-deleted -__v');
@@ -33,23 +31,6 @@ export const createMatch = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Match with that title already exists.' });
-    let imageUrl = '';
-    let fileName = '';
-    if (req.file) {
-      fileName = crypto.randomBytes(32).toString('hex');
-      const fileMimetype = req.file?.mimetype.split('/')[1];
-      const buffer = await sharp(req.file?.buffer)
-        .resize({ width: 960, height: 540, fit: 'contain' })
-        .toBuffer();
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: `match/${fileName}.${fileMimetype}`,
-        Body: buffer,
-        ContentType: req.file?.mimetype,
-      });
-      await s3Client.send(command);
-      imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}match/${fileName}.${fileMimetype}`;
-    }
     const currentDate = new Date();
     const match = await Match.create({
       ...updateBody,
@@ -58,8 +39,8 @@ export const createMatch = async (req, res) => {
       activePlayers: [],
       teamA: [],
       teamB: [],
-      pictureUrl: imageUrl,
-      costPerPerson: 0,
+      cost: 0,
+      collected: 0,
       lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
       isCancelled: false,
       isLocked: false,
@@ -67,7 +48,7 @@ export const createMatch = async (req, res) => {
     });
     // push every group member and admin in the player's array as an object with player id and status
     await User.find({ _id: { $in: chatGroup.admins } })
-    .select('firstName')
+    .select('firstName lastName')
     .then(
       users => {
         users.forEach(user => {
@@ -81,7 +62,7 @@ export const createMatch = async (req, res) => {
     });
 
     await User.find({ _id: { $in: chatGroup.membersList } })
-    .select('firstName')
+    .select('firstName lastName')
     .then(
       users => {
         users.forEach(user => {
@@ -93,6 +74,8 @@ export const createMatch = async (req, res) => {
           });
         });
     });
+    if (!updateBody.costPerPerson) match.costPerPerson = 0;
+    match.cost = match.costPerPerson * match.players.length;
     match.save();
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
@@ -103,6 +86,10 @@ export const createMatch = async (req, res) => {
 export const getAllMatches = async (req, res) => {
   const { chatId } = req.params
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chatGroup = await Chat.findOne({ _id: chatId }, '-deleted -__v');
     if (!chatGroup)
@@ -120,8 +107,10 @@ export const getAllMatches = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'No matches found for the chat group.' });
-    for (const match of groupMatches) // Updates the lock timer for each match
+    for (const match of groupMatches) { // Updates the lock timer for each match
       await match.updateLockTimer();
+      await match.updatePaymentCollected();
+    }
     res.status(200).send({ groupMatches });
   } catch (error) {
     errorMessage(res, error);
@@ -131,6 +120,10 @@ export const getAllMatches = async (req, res) => {
 export const getActivePlayers = async (req, res) => {
   const { matchId } = req.params;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (!match)
@@ -157,6 +150,10 @@ export const updateMatch = async (req, res) => {
   const { matchId } = req.params;
   const updateBody = req.body;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
   await updateMatchSchema.validate(updateBody);
   const chat = await Chat.findOne({ _id: updateBody.chatId }, '-deleted -__v');
@@ -178,38 +175,12 @@ export const updateMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update a match.' });
-  let fileName = '';
-  let imageUrl = matchExists.pictureUrl;
-  if (req.file) {
-    if (matchExists?._doc?.pictureUrl) {
-      const commandDel = new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: `${
-          matchExists?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-        }`,
-      });
-      await s3Client.send(commandDel);
-    }
-    fileName = crypto.randomBytes(32).toString('hex');
-    const fileMimetype = req.file?.mimetype.split('/')[1];
-    const buffer = await sharp(req.file?.buffer)
-      .resize({ width: 960, height: 540, fit: 'contain' })
-      .toBuffer();
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: `match/${fileName}.${fileMimetype}`,
-      Body: buffer,
-      ContentType: req.file?.mimetype,
-    });
-    await s3Client.send(command);
-    imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}match/${fileName}.${fileMimetype}`;
-  }
   const match = await Match.findByIdAndUpdate(
     matchId,
     {
       title: updateBody.title,
       location: updateBody.location,
-      pictureUrl: imageUrl,
+      pictureUrl: updateBody.pictureUrl,
       type: updateBody.type,
       date: updateBody.date,
       meetTime: updateBody.meetTime,
@@ -223,18 +194,12 @@ export const updateMatch = async (req, res) => {
       boots: updateBody.boots,
       condition: updateBody.condition,
       lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
-      cost: updateBody.cost,
+      costPerPerson: updateBody.costPerPerson,
       recurring: updateBody.recurring,
     }, 
     { new: true }
   );
-  const activePlayers = match.players.filter(
-    (player) => player.participationStatus === 'in'
-  );
-  const numActivePlayers = activePlayers.length;
-  const costPerPerson = numActivePlayers > 0 ? match.cost / numActivePlayers : 0;
-  match.costPerPerson = costPerPerson;
-  match.save();
+  await match.updatePaymentCollected();
   if (!match)
       return res
         .status(404)
@@ -249,6 +214,10 @@ export const updateParticiationStatus = async (req,res) => {
   const { matchId } = req.params;
   const { status } = req.body;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (!match)
@@ -276,11 +245,10 @@ export const updateParticiationStatus = async (req,res) => {
     return res
       .status(403)
       .send({ error: 'You are already a part of a team.' });
-  if (!match.isOpenForPlayers()) {
+  if (!match.isOpenForPlayers())
     return res
       .status(403)
       .send({ error: 'The match is no longer accepting new players.' });
-  }
   const update = { 'players.$[elem].participationStatus': status };
   const options = { arrayFilters: [{ 'elem._id': userInfo?.userId }], new: true };
   if (!isActivePlayer && status === 'in') {
@@ -302,20 +270,11 @@ export const updateParticiationStatus = async (req,res) => {
     }
   }
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+  await updatedMatch.updatePaymentCollected();
   if (!updatedMatch)
     return res
       .status(404)
       .send({ error: 'Something went wrong please try again later.' });
-  const activePlayers = updatedMatch.players.filter(
-      (player) => player.participationStatus === 'in'
-    );
-  const numActivePlayers = activePlayers.length;
-  const costPerPerson = numActivePlayers > 0 ? updatedMatch.cost / numActivePlayers : 0;
-  await Match.findOneAndUpdate(
-    { _id: matchId },
-    { costPerPerson },
-    { new: true }
-  );
   res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -326,6 +285,10 @@ export const updatePaymentStatus = async (req,res) => {
   const { matchId } = req.params;
   const { payment, memberId } = req.body;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (!match)
@@ -336,12 +299,7 @@ export const updatePaymentStatus = async (req,res) => {
     return res
       .status(403)
       .send({ error: 'Match is closed. Please create new match.' });
-  const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v');
-  if (!user)
-    return res
-      .status(404)
-      .send({ error: 'User timeout. Please login and try again.' });
-  const player = match.players.some( player => player._id === memberId );
+  const player = match.players.find( player => player._id === memberId );
   if (!player)
     return res
       .status(404)
@@ -352,6 +310,10 @@ export const updatePaymentStatus = async (req,res) => {
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to update payment.' });
+  if (!player.participationStatus === 'in')
+    return res
+      .status(403)
+      .send({ error: 'Player is not active.' });
   const update = { 'players.$[elem].payment': payment };
   const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
   const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
@@ -369,6 +331,10 @@ export const addPlayerToTeam = async (req, res) => {
   const { matchId } = req.params;
   const { chatId, team, members } = req.body;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
   const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
   if (!chat)
@@ -423,6 +389,10 @@ export const removePlayerFromTeam = async (req, res) => {
   const { matchId } = req.params;
   const { chatId, team, memberId } = req.body;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
   const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
   if (!chat)
@@ -470,6 +440,10 @@ export const removePlayerFromTeam = async (req, res) => {
 export const cancelMatch = async (req, res) => {
   const { matchId } = req.params;
   const userInfo = req.session.userInfo;
+  if (!userInfo)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
   if (match?._doc?.deleted?.isDeleted)
@@ -529,15 +503,6 @@ export const deleteMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Something went wrong please try again later.' });
-  if (match?._doc?.pictureUrl) {
-    const commandDel = new DeleteObjectCommand({
-      Bucket: bucketName,
-      Key: `${
-        match?.pictureUrl?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-      }`,
-    });
-    await s3Client.send(commandDel);
-    }
     res.status(201).send({ message: 'Match has been deleted.' });
   } catch (error) {
     errorMessage(res, error);
