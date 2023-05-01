@@ -207,7 +207,7 @@ export const removeMemeber = async (req,res) => {
     if (!isAdmin)
       return res
         .status(404)
-        .send({ error: 'Only admins are allowed to add new members.' });
+        .send({ error: 'Only admins are allowed to remove a member.' });
     const updatedChat = await Chat.findByIdAndUpdate(
       chatId, 
       { $pull: { membersList: { _id: memberId } } },
@@ -225,21 +225,40 @@ export const removeMemeber = async (req,res) => {
 
 export const makeAdmin = async (req,res) => {
   const { chatId } = req.params;
-  const { member } = req.body;
-  const userInfo = req.session.userInfo;
+  const { memberId } = req.body;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      $pull: { membersList: member },
-      $push: { admins: member },
-    });
+    const member = chat.membersList.find((member) => member._id === memberId);
+    if (!member)
+     return res
+      .status(404)
+      .send({ error: 'This person is not part of the chat group.' });
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId, 
+      {
+        $pull: { membersList: { _id: memberId } },
+        $push: { admins: member },
+      },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -252,21 +271,40 @@ export const makeAdmin = async (req,res) => {
 
 export const removeAdmin = async (req,res) => {
   const { chatId } = req.params;
-  const { member } = req.body;
-  const userInfo = req.session.userInfo;
+  const { memberId } = req.body;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      $pull: { admins: member },
-      $push: { membersList: member },
-    });
+    const member = chat.admins.find((admin) => admin._id === memberId);
+    if (!member)
+     return res
+      .status(404)
+      .send({ error: 'This person is not part of the chat group.' });
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId, 
+      {
+        $push: { membersList: member },
+        $pull: { admins: { _id: memberId } },
+      },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -279,18 +317,28 @@ export const removeAdmin = async (req,res) => {
 
 export const leaveChat = async (req,res) => {
   const { chatId } = req.params;
-  const userInfo = req.session.userInfo;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (isAdmin) {
-      const adminCount = chat.admins.length;
-      if (adminCount === 1) {
+      const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
+      if (chat.admins.length === 1) {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-          $push: { admins: membersList[0] },
-          $pull: { admins: userInfo?.userId },
+          $push: { admins: membersList[randomIndex] },
+          $pull: { admins: { _id: userId } },
           $pop: { membersList: -1 },
         });
       if (!updatedChat)
@@ -300,7 +348,7 @@ export const leaveChat = async (req,res) => {
       res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
       }
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-        $pull: { admins: userInfo?.userId },
+        $pull: { admins: { _id: userId } },
       });
       if (!updatedChat)
         return res
@@ -308,10 +356,10 @@ export const leaveChat = async (req,res) => {
           .send({ error: 'Something went wrong please try again later.' });
       res.status(200).send({ message: 'You have left chat group successfully.' });
     }
-    const isMember = chat.membersList.includes(userInfo?.userId);
+    const isMember = chat.membersList.find((member) => member._id === userId);
     if (isMember) {
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-        $pull: { membersList: userInfo?.userId },
+        $pull: { membersList: { _id: userId } },
       });
       if (!updatedChat)
         return res
@@ -327,27 +375,26 @@ export const leaveChat = async (req,res) => {
 export const deleteChat = async (req, res) => {
   const { chatId } = req.params;
   const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat does not exist' });
-    if (chat.isPrivate) {
-      const isMember = chat.membersList.find((member) => member._id !== userId);
-      if (!isMember)
-        return res
-          .status(401)
-          .send({ error: 'You are not a part of this chat.' });
-    } else if (chat.admins.find((admin) => admin._id !== userId)) {
-        return res
-          .status(401)
-          .send({ error: 'Only admins can delete a chat.' });
-    }
-    const commandDel = new DeleteObjectCommand({
-      Bucket: bucketName,
-      Key: `${
-        chat?.chatImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-      }`,
-    });
-    await s3Client.send(commandDel);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins can perform this action.' });
+    await deleteFromBucket(chat.chatImage);
     await Chat.deleteOne({ _id: chatId });
     res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
