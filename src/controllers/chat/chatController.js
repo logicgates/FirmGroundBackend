@@ -92,7 +92,8 @@ export const getChats = async (req, res) => {
         $or: [
           { admins: { $elemMatch: { _id: userId } } },
           { membersList: { $elemMatch: { _id: userId } } }
-        ]
+        ],
+        $and: [ { isDeleted: false } ]
       },
       '-deleted -__v'
     );
@@ -125,6 +126,10 @@ export const updateChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat was not found.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
     const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
@@ -133,10 +138,14 @@ export const updateChat = async (req, res) => {
     const fileName = req.file ? await addToBucket(req.file, 'chat') : chat?.chatImage;
     if (chat?.chatImage !== fileName)
       await deleteFromBucket(chat.chatImage);
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      title: req.body?.title,
-      chatImage: fileName,
-    });
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId,
+      {
+        title: req.body?.title,
+        chatImage: fileName,
+      },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -161,6 +170,10 @@ export const addMembers = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat was not found.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
     if (chat.isPrivate)
       return res
         .status(404)
@@ -203,6 +216,10 @@ export const removeMemeber = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
     const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
@@ -241,6 +258,10 @@ export const makeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
     const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
@@ -287,6 +308,10 @@ export const removeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
     const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
@@ -332,6 +357,10 @@ export const leaveChat = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
     const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (isAdmin) {
       const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
@@ -388,14 +417,26 @@ export const deleteChat = async (req, res) => {
     if (chat.isPrivate)
       return res
         .status(404)
-        .send({ error: 'Unable to perform action in private chat.' });
+        .send({ error: 'Unable to delete private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is already deleted.' });
     const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
     await deleteFromBucket(chat.chatImage);
-    await Chat.deleteOne({ _id: chatId });
+    const deleteChat = await Chat.findByIdAndUpdate(
+    chatId,
+    { isDeleted: true },
+    { new: true }
+    );
+    if (!deleteChat)
+    return res
+      .status(404)
+      .send({ error: 'Something went wrong please try again later.' });
     res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
     errorMessage(res, error);
