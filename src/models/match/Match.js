@@ -149,8 +149,8 @@ const matchSchema = new Schema({
         type: String,
     },
     lockTimer: {
-        type: Number,
-        default: 0,
+        type: String,
+        default: '0 minutes',
     },
     isLocked: {
         type: Boolean,
@@ -180,9 +180,18 @@ matchSchema.methods.updateLockTimer = async function() {
         match.lockTimer = 0;
     }
     else {
-        const lockTimeRemaining = Math.ceil(kickOffTime.diff(currentTime, 'minutes'));
+        // const lockTimeRemaining = Math.ceil(kickOffTime.diff(currentTime, 'minutes'));
+        const lockTimeRemaining = moment.duration(kickOffTime.diff(currentTime));
+        const days = lockTimeRemaining.days();
+        const hours = lockTimeRemaining.hours();
+        const minutes = lockTimeRemaining.minutes();
+        let lockTimerString = '';
+        if (days > 0) {
+            lockTimerString += `${days} days `;
+        }
+        lockTimerString += `${hours}:${minutes < 10 ? '0' : ''}${minutes}`;
         match.isLocked = false;
-        match.lockTimer = lockTimeRemaining;
+        match.lockTimer = lockTimerString;
     }
     await match.save();
 };
