@@ -155,11 +155,12 @@ export const updateMatch = async (req, res) => {
     matchId,
     {
       ...updateBody,
-      lockTimer: moment(`${updateBody.date} ${updateBody.kickOff}`, 'DD-MM-YYYY hh:mm A').diff(moment(), 'minutes'),
+      lockTimer: '',
     }, 
     { new: true }
   );
   await updateMatch.updatePaymentCollected();
+  await updateMatch.updateLockTimer();
   if (!updateMatch)
       return res
         .status(404)
