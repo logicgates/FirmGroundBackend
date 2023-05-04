@@ -78,6 +78,7 @@ export const createChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    newChat.title = isPrivate ? `${members[0].firstName} ${members[0].lastName}` : newChat.title;
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
