@@ -44,7 +44,14 @@ export const createChat = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
     const isPrivate = members.length === 1;
-    const chatExists = isPrivate && await Chat.findOne({ membersList: { $all: [{_id: userId}, {_id: members[0]._id}] } }, '-deleted -__v');
+    const chatExists = isPrivate && await Chat.findOne({
+      membersList: {
+        $elemMatch: { _id: userId },
+        $elemMatch: { _id: members[0]._id }
+      },
+      isPrivate: true,
+      isDeleted: false
+    }, '-deleted -__v');
     if (chatExists)
       return res
         .status(400)
