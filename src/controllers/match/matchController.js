@@ -267,10 +267,11 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to update payment.' });
+    let updatedMatch = match;
     if (player.participationStatus === 'in') {
       const update = { 'players.$[elem].payment': payment };
       const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
-      const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+      updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
       if (!updatedMatch)
         return res
           .status(404)
