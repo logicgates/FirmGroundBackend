@@ -94,6 +94,10 @@ export const createChat = async (req, res) => {
 
 export const getChats = async (req, res) => {
   const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chats = await Chat.find(
       {
