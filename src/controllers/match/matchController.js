@@ -420,7 +420,7 @@ export const cancelMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Something went wrong please try again later.' });
-  res.status(201).send({ message: 'Match has been cancelled.' });
+  res.status(201).send({ match: cancelMatch,  message: 'Match has been cancelled.' });
   } catch (error) {
     errorMessage(res, error);
   }
