@@ -73,8 +73,20 @@ const userSchema = new Schema({
   profileImage: {
     type: String,
     trim: true,
-  }
-});
+  },
+  deleted: {
+      isDeleted: {
+        type: Boolean,
+        default: false,
+      },
+      date: {
+        type: Date,
+        default: null,
+      },
+    },
+  },
+  { timestamps: true }
+);
 
 userSchema.methods.comparePassword = function (password) {
   return bcrypt.compareSync(password, this.password);
