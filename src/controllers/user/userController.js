@@ -142,7 +142,7 @@ export const changePassword = async (req,res) => {
   } catch (error) {
     errorMessage(res,error);
   }
-}
+};
 
 export const deleteUser = async (req, res) => {
   const { userId } = req.params;
@@ -161,7 +161,9 @@ export const deleteUser = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Your profile has already been deleted.' })
-    const deleteProfile = await User.findByIdAndDelete(userInfo?.userId);
+    const deleteProfile = await User.findByIdAndUpdate(user?.userId, {
+        deleted: { isDeleted: true, date: new Date() },
+      });
     if (!deleteProfile)
       return res
         .status(404)
