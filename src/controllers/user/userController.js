@@ -161,7 +161,7 @@ export const deleteUser = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Your profile has already been deleted.' })
-    const deleteProfile = await User.findByIdAndUpdate(user?.userId, {
+    const deleteProfile = await User.findByIdAndUpdate(user?._id, {
         deleted: { isDeleted: true, date: new Date() },
       });
     if (!deleteProfile)

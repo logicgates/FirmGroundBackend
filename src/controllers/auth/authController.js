@@ -40,6 +40,10 @@ export const login = async (req, res) => {
       return res
         .status(401)
         .send({ error: 'Password is incorrect.' });
+    if (user.deleted?.isDeleted)
+      return res
+        .status(401)
+        .send({ error: 'Account is deactivated. Kindly re-verify to login.' });
     let currentLoginDate = new Date(); // current date and time (e.g: 2023-03-22T12:44:34.875Z)
     const sessionUser = { userId: user?._id, email: user?.email };
     req.session.userInfo = sessionUser;
@@ -94,6 +98,7 @@ export const registerAndSendCode = async (req, res) => {
       lastLoginDate: '',
       profileImage:'',
       registerDate: currentDate,
+      deleted: {}
     });
     let verificationCode = generateRandomString(6).toUpperCase();
     const verifyToken = await jwt.sign(
