@@ -1,39 +1,8 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { s3Client } from '../../config/awsConfig.js';
+import { deleteFromBucket, addToBucket } from '../../config/awsConfig.js';
 import db from '../../config/firebaseConfig.js';
-import crypto from 'crypto';
-import sharp from 'sharp';
-
-const bucketName = process.env.S3_BUCKET_NAME;
-
-async function deleteFromBucket (objKey) {
-  const commandDel = new DeleteObjectCommand({
-      Bucket: bucketName,
-      Key: `${
-        objKey.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-      }`,
-    });
-    await s3Client.send(commandDel);
-}
-
-async function addToBucket (image, collection) {
-  const fileName = crypto.randomBytes(32).toString('hex');
-  const fileMimetype = image.mimetype.split('/')[1];
-  const buffer = await sharp(image.buffer)
-    .resize({ width: 520, height: 520, fit: 'contain' })
-    .toBuffer();
-  const commandPut = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: `${collection}/${fileName}.${fileMimetype}`,
-    Body: buffer,
-    ContentType: image.mimetype,
-  });
-  await s3Client.send(commandPut);
-  return `${process.env.S3_BUCKET_ACCESS_URL}${collection}/${fileName}.${fileMimetype}`;
-}
 
 export const createChat = async (req, res) => {
   const { title, members } = req.body;
