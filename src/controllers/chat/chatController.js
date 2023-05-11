@@ -45,13 +45,13 @@ export const createChat = async (req, res) => {
   try {
     const isPrivate = members.length === 1;
     const chatExists = isPrivate && await Chat.findOne({
-      membersList: {
-        $elemMatch: { _id: userId },
-        $elemMatch: { _id: members[0]._id }
-      },
-      isPrivate: true,
-      isDeleted: false
-    }, '-deleted -__v');
+      $and: [
+        { membersList: { $elemMatch: { _id: userId } } },
+        { membersList: { $elemMatch: { _id: members[0]._id } } },
+        { isPrivate: true },
+        { isDeleted: false }
+    ]
+    }, '-__v');
     if (chatExists)
       return res
         .status(400)
@@ -105,7 +105,7 @@ export const getChats = async (req, res) => {
           { admins: { $elemMatch: { _id: userId } } },
           { membersList: { $elemMatch: { _id: userId } } }
         ],
-        $and: [ { isDeleted: false } ]
+        $and: [ { isPrivate: true, isDeleted: false } ]
       },
       '-deleted -__v'
     );

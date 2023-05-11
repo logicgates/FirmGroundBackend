@@ -318,7 +318,7 @@ export const addPlayerToTeam = async (req, res) => {
   const newTeamMembers = [];
   members.forEach(memberId => {
     let foundPlayer = match.activePlayers.find(player => player._id.toString() === memberId.toString());
-    if (foundPlayer) {
+    if (foundPlayer && !match[`team${team}`].some(player => player._id.toString() === memberId.toString())) {
       newTeamMembers.push(foundPlayer);
     }
   });
