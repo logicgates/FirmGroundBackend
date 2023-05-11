@@ -1,8 +1,6 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
-import ChatMsg from '../../models/chatMessages/ChatMessage.js';
-import { chatMessageSchema } from '../../schema/chat/chatSchema.js';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '../../config/awsConfig.js';
 import db from '../../config/firebaseConfig.js';
@@ -11,48 +9,73 @@ import sharp from 'sharp';
 
 const bucketName = process.env.S3_BUCKET_NAME;
 
+async function deleteFromBucket (objKey) {
+  const commandDel = new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: `${
+        objKey.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
+      }`,
+    });
+    await s3Client.send(commandDel);
+}
+
+async function addToBucket (image, collection) {
+  const fileName = crypto.randomBytes(32).toString('hex');
+  const fileMimetype = image.mimetype.split('/')[1];
+  const buffer = await sharp(image.buffer)
+    .resize({ width: 520, height: 520, fit: 'contain' })
+    .toBuffer();
+  const commandPut = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: `${collection}/${fileName}.${fileMimetype}`,
+    Body: buffer,
+    ContentType: image.mimetype,
+  });
+  await s3Client.send(commandPut);
+  return `${process.env.S3_BUCKET_ACCESS_URL}${collection}/${fileName}.${fileMimetype}`;
+}
+
 export const createChat = async (req, res) => {
-  const { members } = req.body;
-  const userInfo = req.session.userInfo;
-  if (!userInfo)
+  const { title, members } = req.body;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
       return res
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    let chatExists = false;
-    let checkIfPrivate = members.length > 1 ? false : true; // Checking if chat is private or group
-    if (checkIfPrivate) {
-      // Checking if private chat already exists
-      chatExists = await Chat.findOne(
-        {
-          $and: [
-            { membersList: userInfo?.userId },
-            { membersList: members[0] },
-            { isPrivate: true }
-          ],
-        },
-        '-deleted -__v'
-      );
-    }
+    const isPrivate = members.length === 1;
+    const chatExists = isPrivate && await Chat.findOne({
+      $and: [
+        { membersList: { $elemMatch: { _id: userId } } },
+        { membersList: { $elemMatch: { _id: members[0]._id } } },
+        { isPrivate: true },
+        { isDeleted: false }
+    ]
+    }, '-__v');
     if (chatExists)
-      return res.status(400).send({ error: 'Private chat already exists.' });
-    let today = new Date();
-    let newChat = await Chat.create({
-      title: checkIfPrivate === true ? 'Private chat' : req.body.title,
-      admins: checkIfPrivate === true ? [] : userInfo?.userId,
-      membersList: [],
-      creationDate: today,
-      isPrivate: checkIfPrivate,
+      return res
+        .status(400)
+        .send({ error: 'Private chat already exists.' });
+    const user = await User.findOne({ _id: userId }, '-deleted -__v');
+    const userObj = { 
+      _id: userId, 
+      firstName: user.firstName,
+      lastName: user.lastName, 
+      phone: user.phone,
+      profileUrl: user.profileUrl,
+    };
+    const newChat = await Chat.create({
+      title: isPrivate ? 'Private chat' : title,
+      admins: isPrivate ? [] : userObj,
+      membersList: isPrivate ? [userObj, members[0]] : [...members],
+      creationDate: new Date(),
+      isPrivate,
+      isDeleted: false,
       chatImage: '',
-      lastMessage: {},
+      lastMessage: {}
     });
-    if (checkIfPrivate) newChat.membersList.push(userInfo?.userId);
-    members.forEach((member) => {
-      newChat.membersList.push(member);
-    });
-    newChat.save();
     // Add the new chat to Firestore
-    const chatId = newChat._id.toString(); // Use the chat _id as the document name in Firestore
+    const chatId = newChat._id.toString(); 
     const newChatRef = await db.collection('chats').doc(chatId).set({
       title: newChat.title,
       creationDate: newChat.creationDate,
@@ -62,6 +85,7 @@ export const createChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    newChat.title = isPrivate ? `${members[0].firstName} ${members[0].lastName}` : newChat.title;
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
@@ -69,30 +93,30 @@ export const createChat = async (req, res) => {
 };
 
 export const getChats = async (req, res) => {
-  const userInfo = req.session.userInfo;
-  if (!userInfo)
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
       return res
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
     const chats = await Chat.find(
       {
-        $or: [{ admins: userInfo?.userId }, { membersList: userInfo?.userId }],
+        $or: [
+          { admins: { $elemMatch: { _id: userId } } },
+          { membersList: { $elemMatch: { _id: userId } } }
+        ],
+        $and: [ { isPrivate: true, isDeleted: false } ]
       },
       '-deleted -__v'
     );
-    if (!chats) return res.status(404).send({ error: 'No chats found.' });
+    if (!chats) 
+      return res
+        .status(404)
+        .send({ error: 'No chats were found.' });
     for (const chat of chats) {
       if (chat.isPrivate) {
-        let memberId = chat.membersList.filter(
-          (user) => userInfo?.userId !== user
-        );
-        let member = await User.findOne(
-          { _id: memberId[0] },
-          'firstName lastName'
-        );
-        chat.title = member.firstName + ' ' + member.lastName;
-        chat.chatImage = member.profileImage;
+        const member = chat.membersList.find((member) => member._id !== userId);
+        chat.title = `${member.firstName} ${member.lastName}`;
       }
     }
     res.status(200).send({ chats });
@@ -103,43 +127,37 @@ export const getChats = async (req, res) => {
 
 export const updateChat = async (req, res) => {
   const { chatId } = req.params;
-  const userInfo = req.session.userInfo;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to update chat group.' });
-    let fileName = '';
-    if (req.file) {
-      if (chat?._doc?.chatImage) {
-        const commandDel = new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: `${
-            chat?.chatImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-          }`,
-        });
-        await s3Client.send(commandDel);
-      }
-      fileName = crypto.randomBytes(32).toString('hex');
-      const fileMimetype = req.file.mimetype.split('/')[1];
-      const buffer = await sharp(req.file.buffer)
-        .resize({ width: 520, height: 520, fit: 'contain' })
-        .toBuffer();
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: `chat/${fileName}.${fileMimetype}`,
-        Body: buffer,
-        ContentType: req.file.mimetype,
-      });
-      s3Client.send(command);
-    }
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      title: req.body?.title,
-      chatImage: `${process.env.S3_BUCKET_ACCESS_URL}chat/${fileName}.${fileMimetype}`,
-    });
+    const fileName = req.file ? await addToBucket(req.file, 'chat') : chat?.chatImage;
+    if (chat?.chatImage !== fileName)
+      await deleteFromBucket(chat.chatImage);
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId,
+      {
+        title: req.body?.title,
+        chatImage: fileName,
+      },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -153,19 +171,35 @@ export const updateChat = async (req, res) => {
 export const addMembers = async (req, res) => {
   const { chatId } = req.params;
   const { members } = req.body;
-  const userInfo = req.session.userInfo;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Private chat is limited to two members.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to add new members.' });
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      $push: { membersList: { $each: members } },
-    });
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId, 
+      { $push: { membersList: { $each: members } } },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -174,24 +208,40 @@ export const addMembers = async (req, res) => {
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
 export const removeMemeber = async (req,res) => {
   const { chatId } = req.params;
-  const { member } = req.body;
-  const userInfo = req.session.userInfo;
+  const { memberId } = req.body;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
-        .send({ error: 'Only admins are allowed to add new members.' });
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      $pull: { membersList: member },
-    });
+        .send({ error: 'Only admins are allowed to remove a member.' });
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId, 
+      { $pull: { membersList: { _id: memberId } } },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -200,25 +250,48 @@ export const removeMemeber = async (req,res) => {
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
 export const makeAdmin = async (req,res) => {
   const { chatId } = req.params;
-  const { member } = req.body;
-  const userInfo = req.session.userInfo;
+  const { memberId } = req.body;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      $pull: { membersList: member },
-      $push: { admins: member },
-    });
+    const member = chat.membersList.find((member) => member._id === memberId);
+    if (!member)
+     return res
+      .status(404)
+      .send({ error: 'This person is not part of the chat group.' });
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId, 
+      {
+        $pull: { membersList: { _id: memberId } },
+        $push: { admins: member },
+      },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -227,25 +300,48 @@ export const makeAdmin = async (req,res) => {
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
 export const removeAdmin = async (req,res) => {
   const { chatId } = req.params;
-  const { member } = req.body;
-  const userInfo = req.session.userInfo;
+  const { memberId } = req.body;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-      $pull: { admins: member },
-      $push: { membersList: member },
-    });
+    const member = chat.admins.find((admin) => admin._id === memberId);
+    if (!member)
+     return res
+      .status(404)
+      .send({ error: 'This person is not part of the chat group.' });
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId, 
+      {
+        $push: { membersList: member },
+        $pull: { admins: { _id: memberId } },
+      },
+      { new: true }
+    );
     if (!updatedChat)
       return res
         .status(404)
@@ -254,22 +350,36 @@ export const removeAdmin = async (req,res) => {
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
 export const leaveChat = async (req,res) => {
   const { chatId } = req.params;
-  const userInfo = req.session.userInfo;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat was not found.' });
-    if (chat.isPrivate) return res.status(404).send({ error: 'Unable to perform action in private chat.' });
-    const isAdmin = chat.admins.includes(userInfo?.userId);
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
     if (isAdmin) {
-      const adminCount = chat.admins.length;
-      if (adminCount === 1) {
+      const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
+      if (chat.admins.length === 1) {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-          $push: { admins: membersList[0] },
-          $pull: { admins: userInfo?.userId },
+          $push: { admins: membersList[randomIndex] },
+          $pull: { admins: { _id: userId } },
           $pop: { membersList: -1 },
         });
       if (!updatedChat)
@@ -279,7 +389,7 @@ export const leaveChat = async (req,res) => {
       res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
       }
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-        $pull: { admins: userInfo?.userId },
+        $pull: { admins: { _id: userId } },
       });
       if (!updatedChat)
         return res
@@ -287,10 +397,10 @@ export const leaveChat = async (req,res) => {
           .send({ error: 'Something went wrong please try again later.' });
       res.status(200).send({ message: 'You have left chat group successfully.' });
     }
-    const isMember = chat.membersList.includes(userInfo?.userId);
+    const isMember = chat.membersList.find((member) => member._id === userId);
     if (isMember) {
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-        $pull: { membersList: userInfo?.userId },
+        $pull: { membersList: { _id: userId } },
       });
       if (!updatedChat)
         return res
@@ -301,101 +411,45 @@ export const leaveChat = async (req,res) => {
   } catch (error) {
     errorMessage(res, error);
   }
-}
+};
 
 export const deleteChat = async (req, res) => {
   const { chatId } = req.params;
-  const userInfo = req.session.userInfo;
+  const userId = req.session.userInfo?.userId;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) return res.status(404).send({ error: 'Chat does not exist' });
-    if (chat.isPrivate) {
-      const isMember = chat.membersList.includes(userInfo?.userId);
-      if (!isMember)
-        return res
-          .status(403)
-          .send({ error: 'You are not a part of this chat.' });
-    } else {
-      if (chat.admins[0] !== userInfo?.userId)
-        return res
-          .status(403)
-          .send({ error: 'Only admins can delete a chat.' });
-    }
-    const commandDel = new DeleteObjectCommand({
-      Bucket: bucketName,
-      Key: `${
-        chat?.chatImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-      }`,
-    });
-    await s3Client.send(commandDel);
-    await Chat.deleteOne({ _id: chatId });
-    res.status(201).send({ message: 'Chat has been deleted.' });
-  } catch (error) {
-    errorMessage(res, error);
-  }
-};
-
-export const getMessages = async (req, res) => {
-  const { chatId } = req.params;
-  try {
-    const chatMsgs = await ChatMsg.find({ chatId }, '-deleted -__v').limit(20);
-    if (!chatMsgs)
+    if (!chat) 
       return res
         .status(404)
-        .send({ error: 'No messages were found for this chat.' });
-    res.status(201).send({ chatMessages: chatMsgs });
-  } catch (error) {
-    errorMessage(res, error);
-  }
-};
-
-export const addMessage = async (req, res) => {
-  const { chatId, message } = req.body;
-  const userInfo = req.session.userInfo;
-  try {
-    const chatRef = db.collection('chats').doc(chatId);
-    const chatDoc = await chatRef.get();
-    if (!chatDoc.exists)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
       return res
         .status(404)
-        .send({ error: 'Chat not found.' });
-    const user = await User.findById(userInfo?.userId);
-    const newMessage = {
-      userId: userInfo?.userId,
-      userName: user.firstName + ' ' + user.lastName,
-      message: req.body.message,
-      createdAt: new Date(),
-    };
-    const newMessageRef = await chatRef.collection('messages').add({newMessage});
-    const chat = await Chat.findByIdAndUpdate(
-      chatId,
-      { lastMessage: newMessage, },
-      { new: true }
+        .send({ error: 'Unable to delete private chat.' });
+    if (chat.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is already deleted.' });
+    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins can perform this action.' });
+    await deleteFromBucket(chat.chatImage);
+    const deleteChat = await Chat.findByIdAndUpdate(
+    chatId,
+    { isDeleted: true },
+    { new: true }
     );
-    if (!chat)
-      return res
-        .status(404)
-        .send({ error: 'last message not found.' });
-    res.status(201).send({ chat });
-  } catch (error) {
-    errorMessage(res, error);
-  }
-};
-
-export const deleteChatMessage = async (req, res) => {
-  const { messageId } = req.params;
-  try {
-    const message = await ChatMsg.findOne({ _id: messageId }, '-deleted -__v');
-    if (!message)
-      return res
-        .status(404)
-        .send({ error: 'Message has already been deleted.' });
-    const deleteMessage = await ChatMsg.deleteOne({ _id: messageId });
-    if (!deleteMessage)
-      return res
-        .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
-    res.status(201).send({ message: 'Message has been deleted.' });
+    if (!deleteChat)
+    return res
+      .status(404)
+      .send({ error: 'Something went wrong please try again later.' });
+    res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
     errorMessage(res, error);
   }
