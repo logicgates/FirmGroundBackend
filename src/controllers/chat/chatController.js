@@ -105,7 +105,7 @@ export const getChats = async (req, res) => {
           { admins: { $elemMatch: { _id: userId } } },
           { membersList: { $elemMatch: { _id: userId } } }
         ],
-        $and: [ { isPrivate: true, isDeleted: false } ]
+        $and: [ { isDeleted: false } ]
       },
       '-deleted -__v'
     );
