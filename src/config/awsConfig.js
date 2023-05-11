@@ -1,5 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
-import { PutObjectCommand, DeleteObjectCommand, ListObjectsCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 import sharp from 'sharp';
 import dotenv from 'dotenv'
@@ -10,7 +10,7 @@ const bucketRegion = process.env.S3_BUCKET_REGION;
 const bucketAccessKey = process.env.S3_BUCKET_ACCESS_KEY;
 const bucketSecretKey = process.env.S3_BUCKET_SECRET_ACCESS_KEY;
 
-export const s3Client = new S3Client({
+const s3Client = new S3Client({
     accessKeyId: bucketAccessKey,
     secretAccessKey: bucketSecretKey,
     region: bucketRegion,
