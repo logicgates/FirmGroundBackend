@@ -1,12 +1,7 @@
 import { errorMessage  } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import { updateUserSchema, changePasswordSchema } from '../../schema/user/userSchema.js'
-import { s3Client } from '../../config/awsConfig.js';
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import sharp from 'sharp';
-import crypto from 'crypto';
-
-const bucketName = process.env.S3_BUCKET_NAME;
+import { deleteFromBucket, addToBucket } from '../../config/awsConfig.js';
 
 export const getUser = async (req, res) => {
   const { userId } = req.params;
@@ -56,32 +51,9 @@ export const updateUser = async (req, res) => {
   try {
     await updateUserSchema.validate(req.body);
     const user = await User.findOne({ _id: userId }, '-deleted -__v -password');
-    let fileName = '';
-    let imageUrl = user.profileImage;
-    if (req.file) {
-      if (user?._doc?.profileImage) {
-        const commandDel = new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: `${
-            user?.profileImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-          }`,
-        });
-        await s3Client.send(commandDel);
-      }
-      fileName = crypto.randomBytes(32).toString('hex');
-      const fileMimetype = req.file.mimetype.split('/')[1];
-      const buffer = await sharp(req.file.buffer)
-        .resize({ width: 520, height: 520, fit: 'contain' })
-        .toBuffer();
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: `profile/${fileName}.${fileMimetype}`,
-        Body: buffer,
-        ContentType: req.file.mimetype,
-      });
-      await s3Client.send(command);
-      imageUrl = `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}.${fileMimetype}`;
-    }
+    const fileName = req.file ? await addToBucket(req.file, 'profile') : user?.profileImage;
+    if (user?.profileImage !== fileName)
+      await deleteFromBucket(user?.profileImage);
     const updateUser = await User.findByIdAndUpdate(
       userId,
       {
@@ -91,7 +63,7 @@ export const updateUser = async (req, res) => {
         emergencyName: updateBody.emergencyName,
         emergencyContact: updateBody.emergencyContact,
         city: updateBody.city,
-        profileImage: imageUrl, 
+        profileImage: fileName, 
       }, 
       { new: true }
   );
@@ -168,15 +140,8 @@ export const deleteUser = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    if (user?._doc?.profileImage) {
-      const commandDel = new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: `${
-          user?.profileImage?.split(`${process.env.S3_BUCKET_ACCESS_URL}`)[1]
-        }`,
-      });
-      await s3Client.send(commandDel);
-    }
+    if (user?.profileImage !== fileName)
+      await deleteFromBucket(user?.profileImage);
     res.status(410).send({ message: 'Your profile has been deleted.' });
   } catch (error) {
     errorMessage(res,error);
