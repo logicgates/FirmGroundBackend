@@ -203,11 +203,10 @@ export const removeMemeber = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to remove a member.' });
-    const updatedChat = await Chat.findByIdAndUpdate(
-      chatId, 
-      { $pull: { membersList: { _id: memberId } } },
-      { new: true }
-    );
+    const admin = chat.admins.find((admin) => admin._id === memberId);
+    const update = admin ? { $pull: { admins: { _id: memberId } } } : { $pull: { membersList: { _id: memberId } } };
+    const options = { new: true };
+    const updatedChat = await Chat.findByIdAndUpdate( chatId, update, options );
     if (!updatedChat)
       return res
         .status(404)
