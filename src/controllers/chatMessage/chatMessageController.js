@@ -34,7 +34,7 @@ export const createMessage = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     // await chatMessageSchema.validate(req.body);
-    const chatExists = await Chat.findOne({ _id: chatId }, '-deleted -__v')
+    const chatExists = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v')
     if (!chatExists)
       return res
         .status(404)
