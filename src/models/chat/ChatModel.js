@@ -6,56 +6,56 @@ const chatSchema = new Schema(
       type: String,
     },
     admins: [{
-        _id: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        firstName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        lastName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        phone: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        profileUrl: {
-            type: String,
-            trim: true,
-        }
+      _id: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      firstName: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      lastName: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      phone: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      profileUrl: {
+          type: String,
+          trim: true,
+      }
     }],
     membersList: [{
-        _id: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        firstName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        lastName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        phone: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        profileUrl: {
-            type: String,
-            trim: true,
-        }
+      _id: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      firstName: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      lastName: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      phone: {
+          type: String,
+          required: true,
+          trim: true,
+      },
+      profileUrl: {
+          type: String,
+          trim: true,
+      }
     }],
     creationDate: {
       type: String,
@@ -69,9 +69,16 @@ const chatSchema = new Schema(
     lastMessage: {
       type: Object,
     },
-    isDeleted: {
-      type: Boolean,
-    }
+    deleted: {
+      isDeleted: {
+        type: Boolean,
+        default: false,
+      },
+      date: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   { timestamps: true }
 );
