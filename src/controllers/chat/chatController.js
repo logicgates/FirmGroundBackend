@@ -104,7 +104,7 @@ export const updateChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat was not found.' });
-    if (chat.isDeleted)
+    if (chat.deleted.isDeleted)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -148,7 +148,7 @@ export const addMembers = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat was not found.' });
-    if (chat.isDeleted)
+    if (chat.deleted.isDeleted)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -194,7 +194,7 @@ export const removeMemeber = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
-    if (chat.isDeleted)
+    if (chat.deleted.isDeleted)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -236,7 +236,7 @@ export const makeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
-    if (chat.isDeleted)
+    if (chat.deleted.isDeleted)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -286,7 +286,7 @@ export const removeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
-    if (chat.isDeleted)
+    if (chat.deleted.isDeleted)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -335,7 +335,7 @@ export const leaveChat = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Unable to perform action in private chat.' });
-    if (chat.isDeleted)
+    if (chat.deleted.isDeleted)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -404,7 +404,7 @@ export const deleteChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Unable to delete private chat.' });
-    if (chat.isDeleted)
+    if (chat.deleted.isDeleted)
       return res
         .status(404)
         .send({ error: 'Chat is already deleted.' });
