@@ -3,9 +3,10 @@ import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
 import { matchSchema, updateMatchSchema } from '../../schema/match/matchSchema.js'
+import db from '../../config/firebaseConfig.js';
 
 export const createMatch = async (req, res) => {
-  const updateBody = req.body;
+  const { chatId, costPerPerson, title } = req.body;
   const userId = req.session.userInfo?.userId;
   if (!userId)
       return res
@@ -13,7 +14,10 @@ export const createMatch = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
     await matchSchema.validate(req.body);
-    const chat = await Chat.findOne({ _id: updateBody.chatId, 'deleted.isDeleted': false }, '-deleted -__v');
+    const [chat, user] = await Promise.all([
+      Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v'),
+      User.findOne({ _id: userId }, '-deleted -__v')
+    ]);
     if (!chat)
       return res
         .status(404)
@@ -23,39 +27,44 @@ export const createMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to create a match.' });
-    const alreadyExist = await Match.findOne()
-      .and([ { title: updateBody.title }, { chatId: updateBody.chatId } ])
-      .exec();
-    if (alreadyExist)
+    const matchExist = await Match.exists({ title: title, chatId: chatId });
+    if (matchExist)
       return res
         .status(400)
         .send({ error: 'Match with that title already exists.' });
+    const chatMembers = [...chat.admins, ...chat.membersList];
+    const players = await User.find({ _id: { $in: chatMembers } }, 'firstName lastName');
     const match = await Match.create({
-      ...updateBody,
-      chatId: updateBody.chatId,
-      players: [],
+      ...req.body,
+      chatId,
+      players: players.map(player => ({
+        _id: player._id,
+        name: `${player.firstName} ${player.lastName}`,
+        participationStatus: 'pending',
+        payment: 'unpaid',
+      })),
       activePlayers: [],
       teamA: [],
       teamB: [],
-      cost: 0,
+      cost: (costPerPerson || 0) * players.length,
       collected: 0,
       lockTimer: '',
       isCancelled: false,
       isLocked: false,
       creationDate: new Date(),
     });
-    const chatMembers = [...chat.admins, ...chat.membersList];
-    const players = await User.find({ _id: { $in: chatMembers } }, 'firstName lastName');
-    match.players = players.map(player => ({
-      _id: player._id,
-      name: `${player.firstName} ${player.lastName}`,
-      participationStatus: 'pending',
-      payment: 'unpaid',
-    }));
-    
-    match.cost = (updateBody.costPerPerson || 0) * match.players.length;
     await match.updateLockTimer();
-    match.save();
+    const newMessage = {
+      userId: userId,
+      userName: `${user.firstName} ${user.lastName}`,
+      message: `Match was created by ${user.firstName}`,
+      createdAt: new Date().toString(),
+      type: 'notification',
+    };
+    const chatRef = db.collection('chats').doc(chatId);
+    await chatRef.collection('messages').add(newMessage);
+    chat.lastMessage = newMessage;
+    await chat.save();
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
     errorMessage(res, error);

@@ -84,6 +84,15 @@ export const getChats = async (req, res) => {
         const member = chat.membersList.find((member) => member._id !== userId);
         chat.title = `${member.firstName} ${member.lastName}`;
       }
+      chat.lastMessage = 'Start chatting...';
+      const chatRef = db.collection('chats').doc(chat.id);
+      const messagesSnapshot = await chatRef
+        .collection('messages')
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get();
+      if (!messagesSnapshot.empty) 
+        chat.lastMessage = messagesSnapshot.docs[0].data();
     }
     res.status(200).send({ chats });
   } catch (error) {
