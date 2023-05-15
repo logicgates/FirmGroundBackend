@@ -59,7 +59,7 @@ export const createMatch = async (req, res) => {
       userName: `${user.firstName} ${user.lastName}`,
       message: `Match was created by ${user.firstName}`,
       createdAt: new Date().toString(),
-      isNotif: true,
+      type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
