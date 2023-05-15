@@ -14,7 +14,10 @@ export const createMatch = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
     await matchSchema.validate(req.body);
-    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v');
+    const [chat, user] = await Promise.all([
+      Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v'),
+      User.findOne({ _id: userId }, '-deleted -__v')
+    ]);
     if (!chat)
       return res
         .status(404)
@@ -24,43 +27,36 @@ export const createMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to create a match.' });
-    const alreadyExist = await Match.findOne()
-      .and([ { title: title }, { chatId: chatId } ])
-      .exec();
-    if (alreadyExist)
+    const matchExist = await Match.exists({ title: title, chatId: chatId });
+    if (matchExist)
       return res
         .status(400)
         .send({ error: 'Match with that title already exists.' });
+    const chatMembers = [...chat.admins, ...chat.membersList];
+    const players = await User.find({ _id: { $in: chatMembers } }, 'firstName lastName');
     const match = await Match.create({
       ...req.body,
-      chatId: chatId,
-      players: [],
+      chatId,
+      players: players.map(player => ({
+        _id: player._id,
+        name: `${player.firstName} ${player.lastName}`,
+        participationStatus: 'pending',
+        payment: 'unpaid',
+      })),
       activePlayers: [],
       teamA: [],
       teamB: [],
-      cost: 0,
+      cost: (costPerPerson || 0) * players.length,
       collected: 0,
       lockTimer: '',
       isCancelled: false,
       isLocked: false,
       creationDate: new Date(),
     });
-    const chatMembers = [...chat.admins, ...chat.membersList];
-    const players = await User.find({ _id: { $in: chatMembers } }, 'firstName lastName');
-    match.players = players.map(player => ({
-      _id: player._id,
-      name: `${player.firstName} ${player.lastName}`,
-      participationStatus: 'pending',
-      payment: 'unpaid',
-    }));
-    match.cost = (costPerPerson || 0) * match.players.length;
     await match.updateLockTimer();
-    match.save();
-    // Last message for chat is updated
-    const user = await User.findOne({ _id: userId }, '-deleted -__v');
     const newMessage = {
       userId: userId,
-      userName:`${user.firstName} ${user.lastName}`,
+      userName: `${user.firstName} ${user.lastName}`,
       message: `Match was created by ${user.firstName}`,
       createdAt: new Date().toString(),
       isNotif: true,
@@ -68,7 +64,7 @@ export const createMatch = async (req, res) => {
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
     chat.lastMessage = newMessage;
-    chat.save();
+    await chat.save();
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
     errorMessage(res, error);
