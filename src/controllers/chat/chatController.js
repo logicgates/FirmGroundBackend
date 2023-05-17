@@ -12,11 +12,12 @@ export const createChat = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const isPrivate = members.length === 1;
+    const parsedMembers = typeof members === 'string' ? JSON.parse(members) : members;
+    const isPrivate = parsedMembers.length === 1;
     const chatExists = isPrivate && await Chat.findOne({
       $and: [
         { membersList: { $elemMatch: { _id: userId } } },
-        { membersList: { $elemMatch: { _id: members[0]._id } } },
+        { membersList: { $elemMatch: { _id: parsedMembers[0]._id } } },
         { isPrivate: true },
         { isDeleted: false }
     ]
@@ -37,12 +38,11 @@ export const createChat = async (req, res) => {
     const newChat = await Chat.create({
       title: isPrivate ? 'Private chat' : title,
       admins: isPrivate ? [] : userObj,
-      membersList: isPrivate ? [userObj, members[0]] : [...members],
+      membersList: isPrivate ? [userObj, parsedMembers[0]] : [...parsedMembers],
       creationDate: new Date(),
       chatImage: fileName,
       isPrivate,
       deleted: {},
-      chatImage: '',
       lastMessage: {}
     });
     // Add the new chat to Firestore
@@ -56,7 +56,7 @@ export const createChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    newChat.title = isPrivate ? `${members[0].firstName} ${members[0].lastName}` : newChat.title;
+    newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
