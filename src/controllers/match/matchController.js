@@ -13,7 +13,7 @@ export const createMatch = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
     await matchSchema.validate(req.body);
-    const chat = await Chat.findOne({ _id: updateBody.chatId, isDeleted: false }, '-deleted -__v');
+    const chat = await Chat.findOne({ _id: updateBody.chatId, 'deleted.isDeleted': false }, '-deleted -__v');
     if (!chat)
       return res
         .status(404)
@@ -70,7 +70,7 @@ export const getAllMatches = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const chat = await Chat.findOne({ _id: chatId, isDeleted: false }, '-deleted -__v');
+    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v');
     if (!chat)
       return res
         .status(404)
@@ -109,7 +109,7 @@ export const getActivePlayers = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match for chat group was not found.' });
-  const chat = await Chat.findOne({ _id: match.chatId, isDeleted: false }, '-deleted -__v');
+  const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-deleted -__v');
   if (!chat)
     return res
       .status(404)
@@ -135,7 +135,7 @@ export const updateMatch = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
   await updateMatchSchema.validate(updateBody);
-  const chat = await Chat.findOne({ _id: updateBody.chatId, isDeleted: false }, '-__v');
+  const chat = await Chat.findOne({ _id: updateBody.chatId, 'deleted.isDeleted': false }, '-__v');
   if (!chat)
     return res
       .status(404)
@@ -257,7 +257,7 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Player is not a part of this match.' });
-    const chat = await Chat.findOne({ _id: match.chatId, isDeleted: false }, '-__v');
+    const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
         .status(404)
@@ -296,7 +296,7 @@ export const addPlayerToTeam = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const chat = await Chat.findOne({ _id: chatId, isDeleted: false }, '-__v');
+  const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
         .status(404)
@@ -349,7 +349,7 @@ export const removePlayerFromTeam = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const chat = await Chat.findOne({ _id: chatId, isDeleted: false }, '-__v');
+  const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
   if (!chat)
     return res
       .status(404)
@@ -401,7 +401,7 @@ export const cancelMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match is closed.' });
-  const chat = await Chat.findOne({ _id: match.chatId, isDeleted: false }, '-__v');
+  const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
   if (!chat)
     return res
       .status(404)
@@ -439,7 +439,7 @@ export const deleteMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    const chat = await Chat.findOne({ _id: match.chatId, isDeleted: false }, '-__v');
+    const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
         .status(404)
