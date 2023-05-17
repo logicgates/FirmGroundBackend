@@ -20,7 +20,7 @@ import { upload } from '../../config/multerConfig.js';
 const router = express.Router();
 
 router.get('/get-chats', getChats);
-router.post('/create', createChat);
+router.post('/create', upload.single('image'), createChat);
 router.put('/update/:chatId', upload.single('image'), updateChat);
 router.delete('/delete/:chatId', deleteChat);
 

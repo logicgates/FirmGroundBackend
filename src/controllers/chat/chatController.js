@@ -33,11 +33,13 @@ export const createChat = async (req, res) => {
       phone: user.phone,
       profileUrl: user.profileUrl,
     };
+    const fileName = req.file ? await addToBucket(req.file, 'chat') : '';
     const newChat = await Chat.create({
       title: isPrivate ? 'Private chat' : title,
       admins: isPrivate ? [] : userObj,
       membersList: isPrivate ? [userObj, members[0]] : [...members],
       creationDate: new Date(),
+      chatImage: fileName,
       isPrivate,
       deleted: {},
       chatImage: '',
