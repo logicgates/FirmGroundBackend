@@ -44,7 +44,7 @@ export const createMessage = async (req, res) => {
       userId: userInfo?.userId,
       userName: user.firstName + ' ' + user.lastName,
       message: message,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toString(),
     };
     const chatRef = db.collection('chats').doc(chatId);
     const messagesRef = await chatRef.collection('messages').add(newMessage);
