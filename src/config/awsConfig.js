@@ -1,8 +1,9 @@
+import dotenv from 'dotenv';
 import { S3Client } from '@aws-sdk/client-s3';
-import { PutObjectCommand, DeleteObjectCommand, ListObjectsCommand, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import crypto from 'crypto';
 import sharp from 'sharp';
-import dotenv from 'dotenv'
+
 dotenv.config();
 
 const bucketName = process.env.S3_BUCKET_NAME;
@@ -11,9 +12,11 @@ const bucketAccessKey = process.env.S3_BUCKET_ACCESS_KEY;
 const bucketSecretKey = process.env.S3_BUCKET_SECRET_ACCESS_KEY;
 
 export const s3Client = new S3Client({
+  region: bucketRegion,
+  credentials: {
     accessKeyId: bucketAccessKey,
-    secretAccessKey: bucketSecretKey,
-    region: bucketRegion,
+    secretAccessKey: bucketSecretKey
+  }
 });
 
 export async function deleteFromBucket (objKey) {
@@ -38,7 +41,11 @@ export async function addToBucket (image, collection) {
     Body: buffer,
     ContentType: image.mimetype,
   });
-  await s3Client.send(commandPut);
+  try {
+    await s3Client.send(commandPut);
+  } catch (error) {
+    return 'error';
+  }
   return `${process.env.S3_BUCKET_ACCESS_URL}${collection}/${fileName}.${fileMimetype}`;
 };
 
