@@ -55,10 +55,10 @@ export const createMatch = async (req, res) => {
     });
     await match.updateLockTimer();
     const newMessage = {
-      userId: userId,
+      senderId: userId,
       userName: `${user.firstName} ${user.lastName}`,
       message: `Match was created by ${user.firstName}`,
-      createdAt: new Date().toString(),
+      createdAt: new Date().toUTCString(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
