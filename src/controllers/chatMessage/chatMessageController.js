@@ -34,7 +34,7 @@ export const createMessage = async (req, res) => {
   const userInfo = req.session.userInfo;
   try {
     // await chatMessageSchema.validate(req.body);
-    const chatExists = await Chat.findOne({ _id: chatId }, '-deleted -__v')
+    const chatExists = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v')
     if (!chatExists)
       return res
         .status(404)
@@ -44,7 +44,7 @@ export const createMessage = async (req, res) => {
       userId: userInfo?.userId,
       userName: user.firstName + ' ' + user.lastName,
       message: message,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toString(),
     };
     const chatRef = db.collection('chats').doc(chatId);
     const messagesRef = await chatRef.collection('messages').add(newMessage);

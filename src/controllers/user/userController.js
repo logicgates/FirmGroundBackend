@@ -52,6 +52,10 @@ export const updateUser = async (req, res) => {
     await updateUserSchema.validate(req.body);
     const user = await User.findOne({ _id: userId }, '-deleted -__v -password');
     const fileName = req.file ? await addToBucket(req.file, 'profile') : user?.profileImage;
+    if (fileName.startsWith('error'))
+      return res
+        .status(500)
+        .send({ error: 'Failed to upload image. Please try again later.' });
     if (user?.profileImage !== fileName)
       await deleteFromBucket(user?.profileImage);
     const updateUser = await User.findByIdAndUpdate(
