@@ -66,3 +66,25 @@ export const viewReminder = (req, res) => {
         errorMessage(res, error);
     }
 };
+
+export const editReminder = (req, res) => {
+    const { reminderId } = req.params;
+    const { data } = req.body;
+    const userId = req.session.userInfo?.userId;
+    if (!userId)
+        return res
+            .status(401)
+            .send({ error: 'User timeout. Please login again.' });
+    try {
+        firebase.database().ref(`reminders/${reminderId}`)
+            .update(data)
+                .then(() => {
+                    res.status(200).json({ message: 'Reminder updated successfully' });
+                })
+                .catch((error) => {
+                    res.status(500).json({ error: 'Failed to update reminder' });
+                });
+    } catch (error) {
+        errorMessage(res, error);
+    }
+};
