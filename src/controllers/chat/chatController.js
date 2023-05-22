@@ -61,21 +61,6 @@ export const createChat = async (req, res) => {
     newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
     await newChat.populate('admins', 'firstName lastName phone profileUrl');
     await newChat.populate('membersList', 'firstName lastName phone profileUrl');
-    newChat.admins.map(admin => ({
-      _id: admin._id,
-      firstName: admin.firstName,
-      lastName: admin.lastName,
-      phone: admin.phone,
-      profileUrl: admin.profileUrl,
-    }));
-    newChat.membersList.map(member => ({
-      _id: member._id,
-      firstName: member.firstName,
-      lastName: member.lastName,
-      phone: member.phone,
-      profileUrl: member.profileUrl,
-    }));
-
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
