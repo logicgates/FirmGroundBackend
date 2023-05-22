@@ -255,7 +255,7 @@ export const removeMember = async (req,res) => {
         .status(404)
         .send({ error: 'Only admins are allowed to remove a member.' });
     const admin = chat.admins.find((admin) => admin.toString() === memberId);
-    const update = admin ? { $pull: { admins: { _id: memberId } } } : { $pull: { membersList: { _id: memberId } } };
+    const update = admin ? { $pull: { admins: memberId } } : { $pull: { membersList: memberId } };
     const options = { new: true };
     const updatedChat = await Chat.findByIdAndUpdate( chatId, update, options )
       .populate('admins', 'firstName lastName phone profileUrl')
@@ -305,7 +305,7 @@ export const makeAdmin = async (req,res) => {
     const updatedChat = await Chat.findByIdAndUpdate(
       chatId, 
       {
-        $pull: { membersList: { _id: memberId } },
+        $pull: { membersList: memberId },
         $push: { admins: member },
       },
       { new: true })
@@ -343,12 +343,12 @@ export const removeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const member = chat.admins.find((admin) => admin._id === memberId);
+    const member = chat.admins.find((admin) => admin.toString() === memberId);
     if (!member)
       return res
         .status(404)
@@ -357,10 +357,11 @@ export const removeAdmin = async (req,res) => {
       chatId, 
       {
         $push: { membersList: member },
-        $pull: { admins: { _id: memberId } },
+        $pull: { admins: memberId },
       },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl')
+        .populate('membersList', 'firstName lastName phone profileUrl');
     if (!updatedChat)
       return res
         .status(404)
