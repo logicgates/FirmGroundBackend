@@ -393,8 +393,8 @@ export const leaveChat = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
-    const isMember = chat.membersList.find((member) => member.toString() === userId);
+    const isAdmin = chat.admins.includes(userId);
+    const isMember = chat.membersList.includes(userId);
     if (isAdmin) {
       const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
       const newAdmin = chat.membersList[randomIndex];
