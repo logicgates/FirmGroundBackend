@@ -462,21 +462,21 @@ export const deleteChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is already deleted.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
     await deleteFromBucket(chat.chatImage);
     const deleteChat = await Chat.findByIdAndUpdate(
-    chatId,
-    { deleted: { isDeleted: true, date: new Date() }, },
-    { new: true }
+      chatId,
+      { deleted: { isDeleted: true, date: new Date() }, },
+      { new: true }
     );
     if (!deleteChat)
-    return res
-      .status(404)
-      .send({ error: 'Something went wrong please try again later.' });
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
     res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
     errorMessage(res, error);
