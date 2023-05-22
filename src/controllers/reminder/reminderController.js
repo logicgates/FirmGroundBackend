@@ -12,11 +12,18 @@ export const addReminder = async (req, res) => {
             .status(401)
             .send({ error: 'User timeout. Please login again.' });
     try {
-        const match = await Match.findOne({ _id: matchId }, '-__v');
+        const match = await Match.findOne({
+        _id: matchId,
+        $or: [
+            { players: { _id: userId } },
+            { activePlayers: { _id: userId } },
+            { teamA: { _id: userId } },
+            { teamB: { _id: userId } },
+        ],});
         if (!match)
             return res
                 .status(404)
-                .send({ error: 'Match for chat group was not found.' });
+                .send({ error: 'Must be a part of this match.' });
         if (match.isLocked || match.isCancelled)
             return res
                 .status(404)
@@ -41,7 +48,7 @@ export const addReminder = async (req, res) => {
     }
 };
 
-export const viewReminder = (req, res) => {
+export const viewReminder = async (req, res) => {
     const { reminderId } = req.params;
     const userId = req.session.userInfo?.userId;
     if (!userId)
