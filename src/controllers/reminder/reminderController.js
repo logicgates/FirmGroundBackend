@@ -67,6 +67,35 @@ export const viewReminder = (req, res) => {
     }
 };
 
+export const viewAllReminders = (req, res) => {
+    const { matchId } = req.params;
+    const userId = req.session.userInfo?.userId;
+    if (!userId)
+        return res
+            .status(401)
+            .send({ error: 'User timeout. Please login again.' });
+    try {
+        firebase.database().ref('reminders')
+            .orderByChild('matchId_userId')
+            .equalTo(`${matchId}_${userId}`)
+            .once('value')
+            .then((snapshot) => {
+            const reminders = snapshot.val();
+            if (reminders) {
+                const remindersList = Object.values(reminders);
+                res.status(200).json({ reminders: remindersList });
+            } else {
+                res.status(404).json({ error: 'Reminders not found' });
+            }
+            })
+            .catch((error) => {
+            res.status(500).json({ error: 'Failed to retrieve reminders', details: error });
+            });
+    } catch (error) {
+        errorMessage(res, error);
+    }
+}
+
 export const editReminder = (req, res) => {
     const { reminderId } = req.params;
     const { data } = req.body;
