@@ -79,10 +79,26 @@ export const editReminder = (req, res) => {
         firebase.database().ref(`reminders/${reminderId}`)
             .update(data)
                 .then(() => {
-                    res.status(200).json({ message: 'Reminder updated successfully' });
+                    res.status(200).send({ message: 'Reminder updated successfully' });
                 })
                 .catch((error) => {
-                    res.status(500).json({ error: 'Failed to update reminder' });
+                    res.status(500).send({ error: 'Failed to update reminder' });
+                });
+    } catch (error) {
+        errorMessage(res, error);
+    }
+};
+
+export const deleteReminder = (req, res) => {
+    const { reminderId } = req.params;
+    try {
+        firebase.database().ref(`reminders/${reminderId}`)
+            .remove()
+                .then(() => {
+                res.status(200).send({ message: 'Reminder deleted successfully' });
+                })
+                .catch((error) => {
+                res.status(500).send({ error: 'Failed to delete reminder' });
                 });
     } catch (error) {
         errorMessage(res, error);
