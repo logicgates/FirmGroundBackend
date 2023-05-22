@@ -292,12 +292,12 @@ export const makeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const member = chat.membersList.find((member) => member._id === memberId);
+    const member = chat.membersList.find((member) => member.toString() === memberId);
     if (!member)
       return res
         .status(404)
@@ -308,8 +308,9 @@ export const makeAdmin = async (req,res) => {
         $pull: { membersList: { _id: memberId } },
         $push: { admins: member },
       },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl')
+        .populate('membersList', 'firstName lastName phone profileUrl');
     if (!updatedChat)
       return res
         .status(404)
