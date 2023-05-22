@@ -113,8 +113,8 @@ export const getAllChats = async (req, res) => {
           { admins: {  _id: userId } },
           { membersList: { _id: userId } }
         ],
-        $and: [{ 'deleted.isDeleted': false }]
-      }, '-deleted -__v');
+        'deleted.isDeleted': false
+      }, '-__v');
     if (!chats) 
       return res
         .status(404)
@@ -157,7 +157,7 @@ export const updateChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
@@ -171,8 +171,9 @@ export const updateChat = async (req, res) => {
         title: req.body?.title,
         chatImage: fileName,
       },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl')
+        .populate('membersList', 'firstName lastName phone profileUrl');;
     if (!updatedChat)
       return res
         .status(404)
