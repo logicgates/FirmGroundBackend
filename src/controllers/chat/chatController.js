@@ -206,7 +206,7 @@ export const addMembers = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Private chat is limited to two members.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
@@ -214,8 +214,9 @@ export const addMembers = async (req, res) => {
     const updatedChat = await Chat.findByIdAndUpdate(
       chatId, 
       { $push: { membersList: { $each: members } } },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl')
+        .populate('membersList', 'firstName lastName phone profileUrl');;;
     if (!updatedChat)
       return res
         .status(404)
