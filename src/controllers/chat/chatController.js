@@ -90,25 +90,13 @@ export const getChat = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const chat = await Chat.findById(chatId, '-deleted -__v')
+    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v')
       .populate('admins', 'firstName lastName phone profileUrl')
       .populate('membersList', 'firstName lastName phone profileUrl');
     if (!chat)
-      return res.status(404).send({ error: 'No chats were found.' });
-    chat.admins.map((admin) => ({
-      _id: admin._id,
-      firstName: admin.firstName,
-      lastName: admin.lastName,
-      phone: admin.phone,
-      profileUrl: admin.profileUrl,
-    }));
-    chat.membersList.map((member) => ({
-      _id: member._id,
-      firstName: member.firstName,
-      lastName: member.lastName,
-      phone: member.phone,
-      profileUrl: member.profileUrl,
-    }));
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
     if (chat.isPrivate) {
       const member = chat.membersList.find((member) => member._id.toString() !== userId);
       chat.title = `${member.firstName} ${member.lastName}`;
