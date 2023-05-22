@@ -393,16 +393,16 @@ export const leaveChat = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
-    const isMember = chat.membersList.find((member) => member._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
+    const isMember = chat.membersList.find((member) => member.toString() === userId);
     if (isAdmin) {
       const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
       const newAdmin = chat.membersList[randomIndex];
       if (chat.admins.length === 1) {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
           $pull: { 
-            admins: { _id: userId },
-            membersList: { _id: newAdmin._id },
+            admins: userId,
+            membersList: newAdmin,
           }
         });
         updatedChat.admins.push(newAdmin);
@@ -414,7 +414,7 @@ export const leaveChat = async (req,res) => {
       res.status(200).send({ message: 'Left chat successfully.' });
       } else {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-          $pull: { admins: { _id: userId } },
+          $pull: { admins: userId },
         });
         if (!updatedChat)
           return res
@@ -424,13 +424,13 @@ export const leaveChat = async (req,res) => {
       }
     } else if (isMember) {
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-        $pull: { membersList: { _id: userId } },
+        $pull: { membersList: userId },
       });
       if (!updatedChat)
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-      res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
+      res.status(200).send({ message: 'Left chat successfully.' });
     } else {
         return res
           .status(404)
