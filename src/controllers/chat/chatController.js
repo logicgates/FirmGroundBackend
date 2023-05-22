@@ -35,10 +35,11 @@ export const createChat = async (req, res) => {
       profileUrl: user.profileUrl,
     };
     const fileName = req.file ? await addToBucket(req.file, 'chat') : '';
+    const memberIds = isPrivate ? [userObj._id, parsedMembers[0]._id] : parsedMembers.map(member => member._id);
     const newChat = await Chat.create({
       title: isPrivate ? 'Private chat' : title,
-      admins: isPrivate ? [] : userObj,
-      membersList: isPrivate ? [userObj, parsedMembers[0]] : [...parsedMembers],
+      admins: isPrivate ? [] : userObj._id,
+      membersList: memberIds,
       creationDate: new Date(),
       chatImage: fileName,
       isPrivate,
@@ -56,7 +57,25 @@ export const createChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+
     newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
+    await newChat.populate('admins', 'firstName lastName phone profileUrl');
+    await newChat.populate('membersList', 'firstName lastName phone profileUrl');
+    newChat.admins.map(admin => ({
+      _id: admin._id,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      phone: admin.phone,
+      profileUrl: admin.profileUrl,
+    }));
+    newChat.membersList.map(member => ({
+      _id: member._id,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      phone: member.phone,
+      profileUrl: member.profileUrl,
+    }));
+
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
