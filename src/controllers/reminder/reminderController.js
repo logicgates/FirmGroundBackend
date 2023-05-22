@@ -39,4 +39,30 @@ export const addReminder = async (req, res) => {
     } catch (error) {
         errorMessage(res, error);
     }
-}
+};
+
+export const viewReminder = (req, res) => {
+    const { reminderId } = req.params;
+    const userId = req.session.userInfo?.userId;
+    if (!userId)
+        return res
+            .status(401)
+            .send({ error: 'User timeout. Please login again.' });
+    try {
+        firebase.database().ref(`reminders/${reminderId}`)
+            .once('value')
+            .then((snapshot) => {
+        const reminder = snapshot.val();
+        if (reminder) {
+            res.status(200).send({ reminder });
+        } else {
+            res.status(404).send({ error: 'Reminder not found' });
+        }
+        })
+        .catch((error) => {
+            res.status(500).send({ error: 'Failed to retrieve reminder' });
+        });
+    } catch (error) {
+        errorMessage(res, error);
+    }
+};
