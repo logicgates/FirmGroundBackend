@@ -5,57 +5,13 @@ const chatSchema = new Schema(
     title: {
       type: String,
     },
-    admins: [{
-      _id: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      firstName: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      lastName: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      phone: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      profileUrl: {
-          type: String,
-          trim: true,
-      }
+    admins: [{ 
+      type: Schema.Types.ObjectId, 
+      ref: 'User' 
     }],
-    membersList: [{
-      _id: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      firstName: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      lastName: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      phone: {
-          type: String,
-          required: true,
-          trim: true,
-      },
-      profileUrl: {
-          type: String,
-          trim: true,
-      }
+    membersList: [{ 
+      type: Schema.Types.ObjectId, 
+      ref: 'User' 
     }],
     creationDate: {
       type: String,
