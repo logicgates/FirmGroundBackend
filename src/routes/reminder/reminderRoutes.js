@@ -1,5 +1,11 @@
 import express from 'express';
-import { addReminder, deleteReminder, editReminder, viewAllReminders, viewReminder } from '../../controllers/reminder/reminderController';
+import { 
+    addReminder, 
+    deleteReminder, 
+    editReminder, 
+    viewAllReminders, 
+    viewReminder 
+} from '../../controllers/reminder/reminderController.js';
 
 const router = express.Router();
 
