@@ -1,5 +1,4 @@
 import { errorMessage } from '../../config/config.js';
-import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import db from '../../config/firebaseConfig.js';
 
@@ -36,7 +35,7 @@ export const addReminder = async (req, res) => {
             matchStatus,
             timestamp,
         };
-        firebase.database().ref('reminders').push(reminder)
+        await db.ref('reminders').push(reminder)
             .then(() => {
                 res.status(201).send({ message: 'Reminder added successfully' });
             })
@@ -56,7 +55,7 @@ export const viewReminder = async (req, res) => {
             .status(401)
             .send({ error: 'User timeout. Please login again.' });
     try {
-        firebase.database().ref(`reminders/${reminderId}`)
+        await db.ref(`reminders/${reminderId}`)
             .once('value')
             .then((snapshot) => {
         const reminder = snapshot.val();
@@ -74,7 +73,7 @@ export const viewReminder = async (req, res) => {
     }
 };
 
-export const viewAllReminders = (req, res) => {
+export const viewAllReminders = async (req, res) => {
     const { matchId } = req.params;
     const userId = req.session.userInfo?.userId;
     if (!userId)
@@ -82,7 +81,7 @@ export const viewAllReminders = (req, res) => {
             .status(401)
             .send({ error: 'User timeout. Please login again.' });
     try {
-        firebase.database().ref('reminders')
+        await db.ref('reminders')
             .orderByChild('matchId_userId')
             .equalTo(`${matchId}_${userId}`)
             .once('value')
@@ -103,7 +102,7 @@ export const viewAllReminders = (req, res) => {
     }
 }
 
-export const editReminder = (req, res) => {
+export const editReminder = async (req, res) => {
     const { reminderId } = req.params;
     const { data } = req.body;
     const userId = req.session.userInfo?.userId;
@@ -112,7 +111,7 @@ export const editReminder = (req, res) => {
             .status(401)
             .send({ error: 'User timeout. Please login again.' });
     try {
-        firebase.database().ref(`reminders/${reminderId}`)
+        await db.ref(`reminders/${reminderId}`)
             .update(data)
                 .then(() => {
                     res.status(200).send({ message: 'Reminder updated successfully' });
@@ -125,10 +124,10 @@ export const editReminder = (req, res) => {
     }
 };
 
-export const deleteReminder = (req, res) => {
+export const deleteReminder = async (req, res) => {
     const { reminderId } = req.params;
     try {
-        firebase.database().ref(`reminders/${reminderId}`)
+        await db.ref(`reminders/${reminderId}`)
             .remove()
                 .then(() => {
                 res.status(200).send({ message: 'Reminder deleted successfully' });
