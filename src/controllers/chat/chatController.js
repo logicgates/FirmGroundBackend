@@ -82,7 +82,53 @@ export const createChat = async (req, res) => {
   }
 };
 
-export const getChats = async (req, res) => {
+export const getChat = async (req, res) => {
+  const userId = req.session.userInfo?.userId;
+  const { chatId } = req.params;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
+  try {
+    const chat = await Chat.findById(chatId, '-deleted -__v')
+      .populate('admins', 'firstName lastName phone profileUrl')
+      .populate('membersList', 'firstName lastName phone profileUrl');
+    if (!chat)
+      return res.status(404).send({ error: 'No chats were found.' });
+    chat.admins.map((admin) => ({
+      _id: admin._id,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      phone: admin.phone,
+      profileUrl: admin.profileUrl,
+    }));
+    chat.membersList.map((member) => ({
+      _id: member._id,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      phone: member.phone,
+      profileUrl: member.profileUrl,
+    }));
+    if (chat.isPrivate) {
+      const member = chat.membersList.find((member) => member._id.toString() !== userId);
+      chat.title = `${member.firstName} ${member.lastName}`;
+    }
+    chat.lastMessage = 'Start chatting...';
+    const chatRef = db.collection('chats').doc(chat.id);
+    const messagesSnapshot = await chatRef
+      .collection('messages')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (!messagesSnapshot.empty)
+      chat.lastMessage = messagesSnapshot.docs[0].data();
+    res.status(200).send({ chat });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const getAllChats = async (req, res) => {
   const userId = req.session.userInfo?.userId;
   if (!userId)
       return res
@@ -91,8 +137,8 @@ export const getChats = async (req, res) => {
   try {
     const chats = await Chat.find({
         $or: [
-          { admins: { $elemMatch: { _id: userId } } },
-          { membersList: { $elemMatch: { _id: userId } } }
+          { admins: {  _id: userId } },
+          { membersList: { _id: userId } }
         ],
         $and: [{ 'deleted.isDeleted': false }]
       }, '-deleted -__v');
