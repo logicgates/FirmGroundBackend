@@ -5,7 +5,7 @@ import {
   getAllChats,
   deleteChat,
   addMembers,
-  removeMemeber,
+  removeMember,
   makeAdmin,
   removeAdmin,
   leaveChat,
@@ -27,7 +27,7 @@ router.put('/update/:chatId', upload.single('image'), updateChat);
 router.delete('/delete/:chatId', deleteChat);
 
 router.put('/add-members/:chatId', addMembers);
-router.put('/remove-members/:chatId', removeMemeber);
+router.put('/remove-members/:chatId', removeMember);
 router.put('/make-admin/:chatId', makeAdmin);
 router.put('/remove-admin/:chatId', removeAdmin);
 router.put('/leave-chat/:chatId', leaveChat);

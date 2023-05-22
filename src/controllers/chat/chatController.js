@@ -216,7 +216,7 @@ export const addMembers = async (req, res) => {
       { $push: { membersList: { $each: members } } },
       { new: true })
         .populate('admins', 'firstName lastName phone profileUrl')
-        .populate('membersList', 'firstName lastName phone profileUrl');;;
+        .populate('membersList', 'firstName lastName phone profileUrl');
     if (!updatedChat)
       return res
         .status(404)
@@ -227,7 +227,7 @@ export const addMembers = async (req, res) => {
   }
 };
 
-export const removeMemeber = async (req,res) => {
+export const removeMember = async (req,res) => {
   const { chatId } = req.params;
   const { memberId } = req.body;
   const userId = req.session.userInfo?.userId;
@@ -249,15 +249,17 @@ export const removeMemeber = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to remove a member.' });
-    const admin = chat.admins.find((admin) => admin._id === memberId);
+    const admin = chat.admins.find((admin) => admin.toString() === memberId);
     const update = admin ? { $pull: { admins: { _id: memberId } } } : { $pull: { membersList: { _id: memberId } } };
     const options = { new: true };
-    const updatedChat = await Chat.findByIdAndUpdate( chatId, update, options );
+    const updatedChat = await Chat.findByIdAndUpdate( chatId, update, options )
+      .populate('admins', 'firstName lastName phone profileUrl')
+      .populate('membersList', 'firstName lastName phone profileUrl');
     if (!updatedChat)
       return res
         .status(404)
