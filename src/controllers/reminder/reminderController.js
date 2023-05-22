@@ -47,7 +47,7 @@ export const addReminder = async (req, res) => {
     }
 };
 
-export const viewReminder = async (req, res) => {
+export const getReminder = async (req, res) => {
     const { reminderId } = req.params;
     const userId = req.session.userInfo?.userId;
     if (!userId)
@@ -73,7 +73,7 @@ export const viewReminder = async (req, res) => {
     }
 };
 
-export const viewAllReminders = async (req, res) => {
+export const getAllReminder = async (req, res) => {
     const { matchId } = req.params;
     const userId = req.session.userInfo?.userId;
     if (!userId)

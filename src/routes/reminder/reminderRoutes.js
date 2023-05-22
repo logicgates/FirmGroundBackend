@@ -3,15 +3,15 @@ import {
     addReminder, 
     deleteReminder, 
     editReminder, 
-    viewAllReminders, 
-    viewReminder 
+    getAllReminder, 
+    getReminder 
 } from '../../controllers/reminder/reminderController.js';
 
 const router = express.Router();
 
-router.get('/view/:reminderId', viewReminder);
-router.get('/view-all', viewAllReminders);
-router.post('/add', addReminder);
+router.get('/get/:reminderId', getReminder);
+router.get('/get-all/:matchId', getAllReminder);
+router.post('/add/:matchId', addReminder);
 router.put('/edit/:reminderId', editReminder);
 router.delete('/delete/:reminderId', deleteReminder);
 
