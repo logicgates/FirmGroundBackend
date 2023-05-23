@@ -2,7 +2,13 @@ import { errorMessage } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
-import { matchSchema, updateMatchSchema } from '../../schema/match/matchSchema.js'
+import { 
+  addPlayerToTeamSchema,
+  matchSchema, 
+  updateMatchSchema, 
+  updateParticiationStatusSchema, 
+  updatePaymentStatusSchema
+} from '../../schema/match/matchSchema.js'
 import db from '../../config/firebaseConfig.js';
 
 export const createMatch = async (req, res) => {
@@ -190,6 +196,7 @@ export const updateParticiationStatus = async (req,res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
+    await updateParticiationStatusSchema.validate(req.body);
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
     if (!match)
       return res
@@ -246,6 +253,7 @@ export const updatePaymentStatus = async (req,res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
+    await updatePaymentStatusSchema.validate(req.body);
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
     if (!match)
       return res
@@ -276,7 +284,8 @@ export const updatePaymentStatus = async (req,res) => {
         .send({ error: 'Player has already paid.' });
     const update = { 'players.$[elem].payment': payment };
     const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
-    const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+    const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options)
+      .populate('players.player', '-_id firstName lastName phone profileUrl');
     await updatedMatch.updatePaymentCollected();
     if (!updatedMatch)
       return res
@@ -297,45 +306,44 @@ export const addPlayerToTeam = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
-    if (!chat)
+    await addPlayerToTeamSchema.validate(req.body);
+    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
+      if (!chat)
+        return res
+          .status(404)
+          .send({ error: 'Chat is unavailable.' });
+    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
+      .populate('players.player', '-_id firstName lastName phone profileUrl');
+    if (!match)
       return res
         .status(404)
-        .send({ error: 'Chat is unavailable.' });
-  const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
-  if (!match)
-    return res
-      .status(404)
-      .send({ error: 'Match is closed.' });
-  const isAdmin = chat.admins.some((admin) => admin._id === userId);
-  if (!isAdmin)
-    return res
-      .status(404)
-      .send({ error: 'Only admins are allowed to add players.' });
-  if (members.length === 0)
-    return res
-      .status(404)
-      .send({ error: `None selected to add to team-${team}.` });
-  const newTeamMembers = [];
-  members.forEach(memberId => {
-    let foundPlayer = match.activePlayers.find(player => player._id.toString() === memberId.toString());
-    if (foundPlayer && !match[`team${team}`].some(player => player._id.toString() === memberId.toString())) {
-      newTeamMembers.push(foundPlayer);
-    }
-  });
-  const updatedMatch = await Match.findByIdAndUpdate(
-    matchId,
-    { 
-      $push: { [`team${team}`]: { $each: newTeamMembers } },
-      $pull: { activePlayers: { _id: { $in: members } } },
-    },
-    { new: true },
-  );
-  if (!updatedMatch)
+        .send({ error: 'Match is closed.' });
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    if (!isAdmin)
       return res
         .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
-  res.status(200).send({ match: updatedMatch, message: `Player added to team ${team}.` });
+        .send({ error: 'Only admins are allowed to add players.' });
+    members.forEach(member => {
+      const player = match.players.find((player) => player._id === member);
+      if (!player.isActive) 
+        return res
+            .status(403)
+            .send({ error: `Player ${player.player.firstName} ${player.player.lastName} is not active.` });
+    });
+    if (members.length === 0)
+      return res
+        .status(404)
+        .send({ error: `None selected to add to team-${team}.` });
+    const filter = { _id: matchId };
+    const update = { 'players.$[elem].team': team };
+    const options = { arrayFilters: [{ 'elem._id': userId }], new: true };
+    const updatedMatch = await Match.findByIdAndUpdate(filter, update, options)
+      .populate('players.player', '-_id firstName lastName phone profileUrl');
+    if (!updatedMatch)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+    res.status(200).send({ match: updatedMatch, message: `Player added to team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -350,40 +358,41 @@ export const removePlayerFromTeam = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
-  if (!chat)
-    return res
-      .status(404)
-      .send({ error: 'Chat is unavailable.' });
-  const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
-  if (!match)
-    return res
-      .status(404)
-      .send({ error: 'Match is closed.' });
-  const isAdmin = chat.admins.some((admin) => admin._id === userId);
-  if (!isAdmin)
-    return res
-      .status(404)
-      .send({ error: 'Only admins are allowed to remove players.' });
-  const teamPlayers = ( team === 'A' ? match.teamA : match.teamB );
-  const foundPlayer = teamPlayers.find((player) => player._id === memberId);
-  if (!foundPlayer)
-    return res
-      .status(404)
-      .send({ error: `Unable to find player of team-${team}.` });
-  const updatedMatch = await Match.findByIdAndUpdate(
-    matchId,
-    { 
-      $push: { activePlayers: foundPlayer },
-      $pull: { [`team${team}`]: { _id: memberId } },
-    },
-    { new: true },
-  );
-  if (!updatedMatch)
+    await addPlayerToTeamSchema.validate(req.body);
+    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
+    if (!chat)
       return res
         .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
-  res.status(200).send({ match: updatedMatch, message: `Player removed from team ${team}.` });
+        .send({ error: 'Chat is unavailable.' });
+    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
+    if (!match)
+      return res
+        .status(404)
+        .send({ error: 'Match is closed.' });
+    const isAdmin = chat.admins.some((admin) => admin._id === userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins are allowed to remove players.' });
+    const teamPlayers = ( team === 'A' ? match.teamA : match.teamB );
+    const foundPlayer = teamPlayers.find((player) => player._id === memberId);
+    if (!foundPlayer)
+      return res
+        .status(404)
+        .send({ error: `Unable to find player of team-${team}.` });
+    const updatedMatch = await Match.findByIdAndUpdate(
+      matchId,
+      { 
+        $push: { activePlayers: foundPlayer },
+        $pull: { [`team${team}`]: { _id: memberId } },
+      },
+      { new: true },
+    );
+    if (!updatedMatch)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+    res.status(200).send({ match: updatedMatch, message: `Player removed from team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
