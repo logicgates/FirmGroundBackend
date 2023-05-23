@@ -369,25 +369,16 @@ export const removePlayerFromTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    const isAdmin = chat.admins.some((admin) => admin._id === userId);
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to remove players.' });
-    const teamPlayers = ( team === 'A' ? match.teamA : match.teamB );
-    const foundPlayer = teamPlayers.find((player) => player._id === memberId);
-    if (!foundPlayer)
-      return res
-        .status(404)
-        .send({ error: `Unable to find player of team-${team}.` });
-    const updatedMatch = await Match.findByIdAndUpdate(
-      matchId,
-      { 
-        $push: { activePlayers: foundPlayer },
-        $pull: { [`team${team}`]: { _id: memberId } },
-      },
-      { new: true },
-    );
+    const filter = { _id: matchId };
+    const update = { 'players.$[elem].team': '' };
+    const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
+    const updatedMatch = await Match.findByIdAndUpdate(filter, update, options)
+      .populate('players.player', '-_id firstName lastName phone profileUrl');
     if (!updatedMatch)
         return res
           .status(404)
