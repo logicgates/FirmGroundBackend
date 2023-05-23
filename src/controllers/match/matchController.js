@@ -155,7 +155,7 @@ export const updateMatch = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match is closed.' });
-  const isAdmin = chat.admins.some((admin) => admin._id === userId);
+  const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
   if (!isAdmin)
     return res
       .status(404)
@@ -167,7 +167,7 @@ export const updateMatch = async (req, res) => {
       lockTimer: '',
     }, 
     { new: true }
-  );
+  ).populate('players.player', 'firstName lastName phone profileUrl');
   await updateMatch.updatePaymentCollected();
   await updateMatch.updateLockTimer();
   if (!updateMatch)
