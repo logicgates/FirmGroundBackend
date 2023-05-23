@@ -8,63 +8,25 @@ const matchSchema = new Schema({
         ref: 'Chat',
     },
     players: [{
-        _id: {
-            type: String,
-            required: true,
-        },
-        name: {
-            type: String,
-            required: true
+        player: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
         },
         participationStatus: {
             type: String,
-            required: true
+            required: true,
+        },
+        isActive: {
+            type: Boolean,
+            required: true,
         },
         payment: {
             type: String,
-        }
-    }],
-    activePlayers: [{ // Players with participation status as 'in' only
-        _id: {
-            type: String,
         },
-        name: {
+        team: {
             type: String,
+            default: ''
         },
-        phone: {
-            type: String,
-        },
-        profileUrl: {
-            type: String,
-        }
-    }],
-    teamA: [{ // Players with participation status as 'in' only
-        _id: {
-            type: String,
-        },
-        name: {
-            type: String,
-        },
-        phone: {
-            type: String,
-        },
-        profileUrl: {
-            type: String,
-        }
-    }],
-    teamB: [{ // Players with participation status as 'in' only
-        _id: {
-            type: String,
-        },
-        name: {
-            type: String,
-        },
-        phone: {
-            type: String,
-        },
-        profileUrl: {
-            type: String,
-        }
     }],
     title: {
         type: String,
