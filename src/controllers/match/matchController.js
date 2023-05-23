@@ -261,25 +261,27 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin._id === userId);
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to update payment.' });
-    let updatedMatch = match;
-    if (player.participationStatus === 'in') {
-      const update = { 'players.$[elem].payment': payment };
-      const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
-      updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
-      if (!updatedMatch)
-        return res
-          .status(404)
-          .send({ error: 'Something went wrong please try again later.' });
-    } else {
+    if (!player.isActive) 
+      return res
+          .status(403)
+          .send({ error: 'Player is not active.' });
+    if (player.payment === 'paid')
       return res
         .status(403)
-        .send({ error: 'Player is not active.' });
-    }
+        .send({ error: 'Player has already paid.' });
+    const update = { 'players.$[elem].payment': payment };
+    const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
+    const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+    await updatedMatch.updatePaymentCollected();
+    if (!updatedMatch)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
     res.status(200).send({ match: updatedMatch, message: 'Player payment status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
