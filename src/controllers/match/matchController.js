@@ -323,13 +323,13 @@ export const addPlayerToTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to add players.' });
-    members.forEach(member => {
+    for (const member of members) {
       const player = match.players.find((player) => player._id === member);
       if (!player.isActive) 
         return res
             .status(403)
-            .send({ error: `Player ${player.player.firstName} ${player.player.lastName} is not active.` });
-    });
+            .send({ error: `Player '${player.player.firstName} ${player.player.lastName}' is not active.` });
+    };
     if (members.length === 0)
       return res
         .status(404)
