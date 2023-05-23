@@ -31,6 +31,7 @@ export const addReminder = async (req, res) => {
         const reminder = {
             matchId,
             userId,
+            matchKickOff: match.kickOff,
             timeAndDate,
             matchStatus,
             timestamp,
