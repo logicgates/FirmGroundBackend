@@ -173,7 +173,7 @@ export const updateChat = async (req, res) => {
       },
       { new: true })
         .populate('admins', 'firstName lastName phone profileUrl')
-        .populate('membersList', 'firstName lastName phone profileUrl');;
+        .populate('membersList', 'firstName lastName phone profileUrl');
     if (!updatedChat)
       return res
         .status(404)
