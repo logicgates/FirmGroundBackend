@@ -125,8 +125,20 @@ const matchSchema = new Schema({
     isCancelled: {
         type: Boolean,
         default: false,
-    }
-});
+    },
+    deleted: {
+        isDeleted: {
+            type: Boolean,
+            default: false,
+        },
+        date: {
+            type: Date,
+            default: null,
+        },
+    },
+    },
+    { timestamps: true }
+);
 
 matchSchema.methods.isOpenForPlayers = function () {
     const matchDateTime = moment(`${this.date} ${this.meetTime}`, 'DD-MM-YYYY hh:mm A');

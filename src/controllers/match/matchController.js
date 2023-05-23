@@ -56,6 +56,7 @@ export const createMatch = async (req, res) => {
       isCancelled: false,
       isLocked: false,
       creationDate: new Date(),
+      deleted: {}
     });
     await match.updateLockTimer();
     const newMessage = {
@@ -95,7 +96,7 @@ export const getAllMatches = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'You are not a part of this chat group.' });
-    const groupMatches = await Match.find({ chatId })
+    const groupMatches = await Match.find({ chatId, 'deleted.isDeleted': false }, '-__v')
       .populate('players.player', '-_id firstName lastName phone profileUrl');
     if (!groupMatches)
       return res
@@ -119,12 +120,16 @@ export const getActivePlayers = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const match = await Match.findOne({ _id: matchId }, '-deleted -__v')
+  const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-deleted -__v')
     .populate('players.player', '-_id firstName lastName phone profileUrl');
   if (!match)
     return res
       .status(404)
-      .send({ error: 'Match for chat group was not found.' });
+      .send({ error: 'Match is closed.' });
+  if (!match.deleted?.isDeleted)
+    return res
+      .status(404)
+      .send({ error: 'Match is unavaliable.' });
   const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-deleted -__v');
   if (!chat)
     return res
@@ -151,37 +156,41 @@ export const updateMatch = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  await updateMatchSchema.validate(updateBody);
-  const chat = await Chat.findOne({ _id: updateBody.chatId, 'deleted.isDeleted': false }, '-__v');
-  if (!chat)
-    return res
-      .status(404)
-      .send({ error: 'Chat is unavailable.' });
-  const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
-  if (!match)
-    return res
-      .status(404)
-      .send({ error: 'Match is closed.' });
-  const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
-  if (!isAdmin)
-    return res
-      .status(404)
-      .send({ error: 'Only admins are allowed to update match details.' });
-  const updateMatch = await Match.findByIdAndUpdate(
-    matchId,
-    {
-      ...updateBody,
-      lockTimer: '',
-    }, 
-    { new: true }
-  ).populate('players.player', '-_id firstName lastName phone profileUrl');
-  await updateMatch.updatePaymentCollected();
-  await updateMatch.updateLockTimer();
-  if (!updateMatch)
+    await updateMatchSchema.validate(updateBody);
+    const chat = await Chat.findOne({ _id: updateBody.chatId, 'deleted.isDeleted': false }, '-__v');
+    if (!chat)
       return res
         .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
-  res.status(200).send({ match: updateMatch, message: 'Match has been updated.' });
+        .send({ error: 'Chat is unavailable.' });
+    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
+    if (!match)
+      return res
+        .status(404)
+        .send({ error: 'Match is closed.' });
+    if (!match.deleted?.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Match is unavaliable.' });
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins are allowed to update match details.' });
+    const updateMatch = await Match.findByIdAndUpdate(
+      matchId,
+      {
+        ...updateBody,
+        lockTimer: '',
+      }, 
+      { new: true }
+    ).populate('players.player', '-_id firstName lastName phone profileUrl');
+    await updateMatch.updatePaymentCollected();
+    await updateMatch.updateLockTimer();
+    if (!updateMatch)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+    res.status(200).send({ match: updateMatch, message: 'Match has been updated.' });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -202,6 +211,10 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
+    if (!match.deleted?.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Match is unavaliable.' });
     if (!match.isOpenForPlayers())
       return res
         .status(403)
@@ -259,6 +272,10 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
+    if (!match.deleted?.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Match is unavaliable.' });
     const player = match.players.find((player) => player._id === memberId);
     if (!player)
       return res
@@ -318,6 +335,14 @@ export const addPlayerToTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
+    if (!match.deleted?.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Match is unavaliable.' });
+    if (!match)
+      return res
+        .status(404)
+        .send({ error: 'Match is closed.' });
     const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
@@ -369,6 +394,10 @@ export const removePlayerFromTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
+    if (!match.deleted?.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Match is unavaliable.' });
     const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
@@ -397,31 +426,36 @@ export const cancelMatch = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
-  if (!match)
-    return res
-      .status(404)
-      .send({ error: 'Match is closed.' });
-  const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
-  if (!chat)
-    return res
-      .status(404)
-      .send({ error: 'Chat is unavailable.' });
-  const isAdmin = chat.admins.some((admin) => admin._id === userId);
-  if (!isAdmin)
-    return res
-      .status(404)
-      .send({ error: 'Only admins are allowed to cancel a match.' });
-  const cancelMatch = await Match.findByIdAndUpdate(
-    matchId,
-    { isCancelled: true },
-    { new: true }
-    );
-  if (!cancelMatch)
-    return res
-      .status(404)
-      .send({ error: 'Something went wrong please try again later.' });
-  res.status(201).send({ match: cancelMatch,  message: 'Match has been cancelled.' });
+    const match = await Match.findOne({ 
+      _id: matchId, 
+      isCancelled: false, 
+      isLocked: false,
+      'deleted.isDeleted': false
+    }, '-__v');
+    if (!match)
+      return res
+        .status(404)
+        .send({ error: 'Match is unavailable.' });
+    const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
+    if (!chat)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    if (!isAdmin)
+      return res
+        .status(404)
+        .send({ error: 'Only admins are allowed to cancel a match.' });
+    const cancelMatch = await Match.findByIdAndUpdate(
+      matchId,
+      { isCancelled: true },
+      { new: true }
+      );
+    if (!cancelMatch)
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    res.status(201).send({ match: cancelMatch,  message: 'Match has been cancelled.' });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -435,22 +469,29 @@ export const deleteMatch = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
+    const match = await Match.findOne({ 
+      _id: matchId, 
+      isCancelled: false, 
+      isLocked: false,
+      'deleted.isDeleted': false
+    }, '-__v');
     if (!match)
       return res
         .status(404)
-        .send({ error: 'Match is closed.' });
+        .send({ error: 'Match is unavailable.' });
     const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin._id === userId);
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to delete a match.' });
-    const deleteMatch = await Match.findByIdAndDelete(matchId);
+    const deleteMatch = await Match.findByIdAndUpdate(matchId, { 
+      deleted: { isDeleted: true, date: new Date() } }
+    );
     if (!deleteMatch)
       return res
         .status(404)
