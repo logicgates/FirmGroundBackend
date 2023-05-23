@@ -126,7 +126,7 @@ export const getActivePlayers = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match is closed.' });
-  if (!match.deleted?.isDeleted)
+  if (match.deleted?.isDeleted)
     return res
       .status(404)
       .send({ error: 'Match is unavaliable.' });
@@ -167,7 +167,7 @@ export const updateMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    if (!match.deleted?.isDeleted)
+    if (match.deleted?.isDeleted)
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
@@ -211,7 +211,7 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    if (!match.deleted?.isDeleted)
+    if (match.deleted?.isDeleted)
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
@@ -272,7 +272,7 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    if (!match.deleted?.isDeleted)
+    if (match.deleted?.isDeleted)
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
@@ -335,7 +335,7 @@ export const addPlayerToTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    if (!match.deleted?.isDeleted)
+    if (match.deleted?.isDeleted)
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
@@ -394,7 +394,7 @@ export const removePlayerFromTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    if (!match.deleted?.isDeleted)
+    if (match.deleted?.isDeleted)
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
@@ -426,16 +426,15 @@ export const cancelMatch = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const match = await Match.findOne({ 
-      _id: matchId, 
-      isCancelled: false, 
-      isLocked: false,
-      'deleted.isDeleted': false
-    }, '-__v');
+    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
     if (!match)
       return res
         .status(404)
-        .send({ error: 'Match is unavailable.' });
+        .send({ error: 'Match is closed.' });
+    if (match.deleted?.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Match is unavaliable.' });
     const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
@@ -450,7 +449,7 @@ export const cancelMatch = async (req, res) => {
       matchId,
       { isCancelled: true },
       { new: true }
-      );
+      ).populate('players.player', '-_id firstName lastName phone profileUrl');
     if (!cancelMatch)
       return res
         .status(404)
@@ -469,16 +468,15 @@ export const deleteMatch = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const match = await Match.findOne({ 
-      _id: matchId, 
-      isCancelled: false, 
-      isLocked: false,
-      'deleted.isDeleted': false
-    }, '-__v');
+    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
     if (!match)
       return res
         .status(404)
-        .send({ error: 'Match is unavailable.' });
+        .send({ error: 'Match is closed.' });
+    if (match.deleted?.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Match has already been deleted.' });
     const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
