@@ -21,7 +21,7 @@ export const createMatch = async (req, res) => {
   try {
     await matchSchema.validate(req.body);
     const [chat, user] = await Promise.all([
-      Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v'),
+      Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v'),
       User.findOne({ _id: userId }, '-deleted -__v')
     ]);
     if (!chat)
@@ -85,7 +85,7 @@ export const getAllMatches = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-deleted -__v');
+    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
         .status(404)
@@ -120,7 +120,7 @@ export const getActivePlayers = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-deleted -__v')
+  const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
     .populate('players.player', '-_id firstName lastName phone profileUrl');
   if (!match)
     return res
@@ -130,7 +130,7 @@ export const getActivePlayers = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Match is unavaliable.' });
-  const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-deleted -__v');
+  const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
   if (!chat)
     return res
       .status(404)
@@ -220,7 +220,6 @@ export const updateParticiationStatus = async (req,res) => {
         .status(403)
         .send({ error: 'The match is no longer accepting new players.' });
     const player = match.players.find( player => player._id === userId );
-    console.log(player)
     if (!player)
       return res
         .status(404)
