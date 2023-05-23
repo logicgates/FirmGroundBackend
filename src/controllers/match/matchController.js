@@ -37,6 +37,7 @@ export const createMatch = async (req, res) => {
       ...req.body,
       chatId,
       players: players.map(playerId => ({
+        _id: playerId._id,
         player: playerId,
         participationStatus: 'pending',
         isActive: false,
@@ -62,7 +63,7 @@ export const createMatch = async (req, res) => {
     await chatRef.collection('messages').add(newMessage);
     chat.lastMessage = newMessage;
     await chat.save();
-    await match.populate('players.player', 'firstName lastName phone profileUrl');
+    await match.populate('players.player', '-_id firstName lastName phone profileUrl');
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
     errorMessage(res, error);
@@ -89,7 +90,7 @@ export const getAllMatches = async (req, res) => {
         .status(404)
         .send({ error: 'You are not a part of this chat group.' });
     const groupMatches = await Match.find({ chatId })
-      .populate('players.player', 'firstName lastName phone profileUrl');
+      .populate('players.player', '-_id firstName lastName phone profileUrl');
     if (!groupMatches)
       return res
         .status(404)
@@ -113,7 +114,7 @@ export const getActivePlayers = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
   const match = await Match.findOne({ _id: matchId }, '-deleted -__v')
-    .populate('players.player', 'firstName lastName phone profileUrl');
+    .populate('players.player', '-_id firstName lastName phone profileUrl');
   if (!match)
     return res
       .status(404)
@@ -167,7 +168,7 @@ export const updateMatch = async (req, res) => {
       lockTimer: '',
     }, 
     { new: true }
-  ).populate('players.player', 'firstName lastName phone profileUrl');
+  ).populate('players.player', '-_id firstName lastName phone profileUrl');
   await updateMatch.updatePaymentCollected();
   await updateMatch.updateLockTimer();
   if (!updateMatch)
@@ -194,49 +195,37 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Match is closed.' });
-    const user = await User.findOne({ _id: userId }, '-__v');
-    if (!user)
-      return res
-        .status(404)
-        .send({ error: 'User timeout. Please login and try again.' });
-    const player = match.players.some( player => player._id === userId );
-    if (!player)
-      return res
-        .status(404)
-        .send({ error: 'You are not a part of this match.' });
-    const isActivePlayer = match.activePlayers.find(player => player._id === userId);
-    const isInTeam = match.teamA.some((player) => player._id === userId) || match.teamB.some((player) => player._id === userId);
-    if (isInTeam)
-      return res
-        .status(403)
-        .send({ error: 'You are already a part of a team.' });
     if (!match.isOpenForPlayers())
       return res
         .status(403)
         .send({ error: 'The match is no longer accepting new players.' });
+    const player = match.players.find( player => player._id === userId );
+    console.log(player)
+    if (!player)
+      return res
+        .status(404)
+        .send({ error: 'You are not a part of this match.' });
+    if (player.team === 'A' || player.team === 'B')
+      return res
+        .status(403)
+        .send({ error: 'You are already a part of a team.' });
+    const filter = { _id: matchId };
     const update = { 'players.$[elem].participationStatus': status };
     const options = { arrayFilters: [{ 'elem._id': userId }], new: true };
-    if (!isActivePlayer && status === 'in') {
-      update['$push'] = { 
-        activePlayers: {
-          _id: userId,
-          name: `${user.firstName} ${user.lastName}`,
-          phone: user.phone,
-          profileUrl: user.profileUrl,
-        }
-      };
-    } else if (isActivePlayer && status === 'out') {
-      const hasPaid = match.players.find((player) => player._id === userId)?.payment === 'paid';
-      if (hasPaid) {
+    if (!player.isActive && status === 'in') {
+      update['$set'] = { 'players.$[elem].isActive': true };
+    } else if (player.isActive && status === 'out') {
+      if (player.payment === 'paid') {
         return res
           .status(403)
           .send({ error: 'Unable to leave after payment completed.' });
       }
       else {
-        update['$pull'] = { activePlayers: { _id: userId } };
+        update['$set'] = { 'players.$[elem].isActive': false };
       }
     }
-    const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+    const updatedMatch = await Match.findOneAndUpdate(filter, update, options)
+      .populate('players.player', '-_id firstName lastName phone profileUrl');
     await updatedMatch.updatePaymentCollected();
     if (!updatedMatch)
       return res
