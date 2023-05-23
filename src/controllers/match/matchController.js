@@ -89,7 +89,7 @@ export const getAllMatches = async (req, res) => {
         .status(404)
         .send({ error: 'You are not a part of this chat group.' });
     const groupMatches = await Match.find({ chatId })
-      .populate('players.player', 'firstName lastName phone profileUrl');;
+      .populate('players.player', 'firstName lastName phone profileUrl');
     if (!groupMatches)
       return res
         .status(404)
@@ -112,7 +112,8 @@ export const getActivePlayers = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-  const match = await Match.findOne({ _id: matchId }, '-deleted -__v');
+  const match = await Match.findOne({ _id: matchId }, '-deleted -__v')
+    .populate('players.player', 'firstName lastName phone profileUrl');
   if (!match)
     return res
       .status(404)
@@ -122,12 +123,13 @@ export const getActivePlayers = async (req, res) => {
     return res
       .status(404)
       .send({ error: 'Chat is unavailable.' });
-  const isAdmin = chat.admins.some((admin) => admin._id === userId);
+  const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
   if (!isAdmin)
     return res
       .status(404)
       .send({ error: 'Only admins are allowed to add players.' });
-  res.status(200).send({ players: match.activePlayers });
+  const activePlayers = match.players.filter(player => player.isActive === true);
+  res.status(200).send({ players: activePlayers });
   } catch (error) {
     errorMessage(res, error);
   }
