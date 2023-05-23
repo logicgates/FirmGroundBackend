@@ -22,7 +22,7 @@ export const createMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin._id === userId);
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
@@ -32,20 +32,17 @@ export const createMatch = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Match with that title already exists.' });
-    const chatMembers = [...chat.admins, ...chat.membersList];
-    const players = await User.find({ _id: { $in: chatMembers } }, 'firstName lastName');
+    const players = [...chat.admins, ...chat.membersList];
     const match = await Match.create({
       ...req.body,
       chatId,
-      players: players.map(player => ({
-        _id: player._id,
-        name: `${player.firstName} ${player.lastName}`,
+      players: players.map(playerId => ({
+        player: playerId,
         participationStatus: 'pending',
+        isActive: false,
         payment: 'unpaid',
+        team: ''
       })),
-      activePlayers: [],
-      teamA: [],
-      teamB: [],
       cost: (costPerPerson || 0) * players.length,
       collected: 0,
       lockTimer: '',
@@ -65,6 +62,7 @@ export const createMatch = async (req, res) => {
     await chatRef.collection('messages').add(newMessage);
     chat.lastMessage = newMessage;
     await chat.save();
+    await match.populate('players.player', 'firstName lastName phone profileUrl');
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
     errorMessage(res, error);
