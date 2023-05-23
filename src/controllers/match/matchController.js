@@ -82,13 +82,14 @@ export const getAllMatches = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin._id === userId);
-    const isMember = chat.membersList.some((member) => member._id === userId);
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    const isMember = chat.membersList.some((member) => member.toString() === userId);
     if (!isMember && !isAdmin)
       return res
         .status(404)
         .send({ error: 'You are not a part of this chat group.' });
-    const groupMatches = await Match.find({ chatId });
+    const groupMatches = await Match.find({ chatId })
+      .populate('players.player', 'firstName lastName phone profileUrl');;
     if (!groupMatches)
       return res
         .status(404)
