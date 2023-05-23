@@ -8,6 +8,10 @@ const matchSchema = new Schema({
         ref: 'Chat',
     },
     players: [{
+        _id: {
+            type: String,
+            required: true,
+        },
         player: {
             type: Schema.Types.ObjectId,
             ref: 'User',
