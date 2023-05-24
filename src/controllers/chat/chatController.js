@@ -83,7 +83,7 @@ export const getChat = async (req, res) => {
         .status(404)
         .send({ error: 'Chat was not found.' });
     if (chat.isPrivate) {
-      const member = chat.membersList.find((member) => member._id.toString() !== userId);
+      const member = chat.membersList.find((member) => member.toString() !== userId);
       chat.title = `${member.firstName} ${member.lastName}`;
     }
     chat.lastMessage = 'Start chatting...';
@@ -121,8 +121,8 @@ export const getAllChats = async (req, res) => {
         .send({ error: 'No chats were found.' });
     for (const chat of chats) {
       if (chat.isPrivate) {
-        const member = chat.membersList.find((member) => member._id !== userId);
-        const user = await User.findOne({ _id: member }, '-deleted -__v');
+        const member = chat.membersList.find((member) => member.toString() !== userId);
+        const user = await User.findOne({ _id: member._id }).select('firstName lastName');
         chat.title = `${user.firstName} ${user.lastName}`;
       }
       chat.lastMessage = 'Start chatting...';
