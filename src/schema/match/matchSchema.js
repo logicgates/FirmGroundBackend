@@ -41,3 +41,15 @@ export const updateMatchSchema = object({
     collected: number(),
     recurring: string(),
 });
+
+export const updateParticiationStatusSchema = object({
+    status: string().oneOf(['in', 'out']).required('Participation status is required.'),
+});
+
+export const updatePaymentStatusSchema = object({
+    payment: string().oneOf(['paid', 'unpaid']).required('Payment status is required.'),
+});
+
+export const addPlayerToTeamSchema = object({
+    team: string().oneOf(['A', 'B']).required('Team is required.'),
+});

@@ -72,6 +72,7 @@ const userSchema = new Schema({
   },
   profileImage: {
     type: String,
+    default: '',
     trim: true,
   },
   deleted: {
