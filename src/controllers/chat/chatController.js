@@ -122,7 +122,8 @@ export const getAllChats = async (req, res) => {
     for (const chat of chats) {
       if (chat.isPrivate) {
         const member = chat.membersList.find((member) => member._id !== userId);
-        chat.title = `${member.firstName} ${member.lastName}`;
+        const user = await User.findOne({ _id: member }, '-deleted -__v');
+        chat.title = `${user.firstName} ${user.lastName}`;
       }
       chat.lastMessage = 'Start chatting...';
       const chatRef = db.collection('chats').doc(chat.id);
