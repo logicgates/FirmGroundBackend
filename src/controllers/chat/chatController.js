@@ -122,7 +122,7 @@ export const getAllChats = async (req, res) => {
     for (const chat of chats) {
       if (chat.isPrivate) {
         const member = chat.membersList.find((member) => member._id !== userId);
-        const user = await User.findOne({ _id: member }, '-deleted -__v');
+        const user = await User.findOne({ _id: member._id }).select('firstName lastName');
         chat.title = `${user.firstName} ${user.lastName}`;
       }
       chat.lastMessage = 'Start chatting...';
