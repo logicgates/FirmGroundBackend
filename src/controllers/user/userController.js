@@ -137,15 +137,16 @@ export const deleteUser = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Your profile has already been deleted.' })
+    if (user?.profileImage)
+      await deleteFromBucket(user?.profileImage);
     const deleteProfile = await User.findByIdAndUpdate(user?._id, {
         deleted: { isDeleted: true, date: new Date() },
+        profileImage: 'https://cdn.pixabay.com/photo/2017/11/10/05/48/user-2935527_1280.png',
       });
     if (!deleteProfile)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    if (user?.profileImage !== fileName)
-      await deleteFromBucket(user?.profileImage);
     res.status(410).send({ message: 'Your profile has been deleted.' });
   } catch (error) {
     errorMessage(res,error);
