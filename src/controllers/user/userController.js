@@ -61,7 +61,8 @@ export const updateUser = async (req, res) => {
     const updateUser = await User.findByIdAndUpdate(
       userId,
       {
-        name: updateBody.name,
+        firstName: updateBody.firstName,
+        lastName: updateBody.lastName,
         phone: updateBody.phone,
         dateOfBirth: updateBody.dateOfBirth,
         emergencyName: updateBody.emergencyName,
