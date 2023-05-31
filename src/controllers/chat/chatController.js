@@ -20,25 +20,17 @@ export const createChat = async (req, res) => {
         { membersList: { $elemMatch: { _id: parsedMembers[0]._id } } },
         { isPrivate: true },
         { isDeleted: false }
-    ]
+      ]
     }, '-__v');
     if (chatExists)
       return res
         .status(400)
         .send({ error: 'Private chat already exists.' });
-    const user = await User.findOne({ _id: userId }, '-deleted -__v');
-    const userObj = { 
-      _id: userId, 
-      firstName: user.firstName,
-      lastName: user.lastName, 
-      phone: user.phone,
-      profileUrl: user.profileUrl,
-    };
     const fileName = req.file ? await addToBucket(req.file, 'chat') : '';
-    const memberIds = isPrivate ? [userObj._id, parsedMembers[0]._id] : parsedMembers.map(member => member._id);
+    const memberIds = isPrivate ? [userId, parsedMembers[0]._id] : parsedMembers.map(member => member._id);
     const newChat = await Chat.create({
       title: isPrivate ? 'Private chat' : title,
-      admins: isPrivate ? [] : userObj._id,
+      admins: isPrivate ? [] : userId,
       membersList: memberIds,
       creationDate: new Date(),
       chatImage: fileName,

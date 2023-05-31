@@ -96,7 +96,6 @@ export const registerAndSendCode = async (req, res) => {
       emergencyContact:'',
       status: false,
       lastLoginDate: '',
-      profileImage:'',
       registerDate: currentDate,
       deleted: {}
     });
