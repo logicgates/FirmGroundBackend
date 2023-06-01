@@ -51,8 +51,8 @@ export const createChat = async (req, res) => {
         .send({ error: 'Something went wrong please try again later.' });
 
     newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
-    await newChat.populate('admins', 'firstName lastName phone profileUrl');
-    await newChat.populate('membersList', 'firstName lastName phone profileUrl');
+    await newChat.populate('admins', 'firstName lastName phone profileUrl deviceId');
+    await newChat.populate('membersList', 'firstName lastName phone profileUrl deviceId');
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
@@ -68,8 +68,8 @@ export const getChat = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v')
-      .populate('admins', 'firstName lastName phone profileUrl')
-      .populate('membersList', 'firstName lastName phone profileUrl');
+      .populate('admins', 'firstName lastName phone profileUrl deviceId')
+      .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!chat)
       return res
         .status(404)
@@ -165,8 +165,8 @@ export const updateChat = async (req, res) => {
         chatImage: fileName,
       },
       { new: true })
-        .populate('admins', 'firstName lastName phone profileUrl')
-        .populate('membersList', 'firstName lastName phone profileUrl');
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
@@ -208,8 +208,8 @@ export const addMembers = async (req, res) => {
       chatId, 
       { $push: { membersList: { $each: members } } },
       { new: true })
-        .populate('admins', 'firstName lastName phone profileUrl')
-        .populate('membersList', 'firstName lastName phone profileUrl');
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
@@ -251,8 +251,8 @@ export const removeMember = async (req,res) => {
     const update = admin ? { $pull: { admins: memberId } } : { $pull: { membersList: memberId } };
     const options = { new: true };
     const updatedChat = await Chat.findByIdAndUpdate( chatId, update, options )
-      .populate('admins', 'firstName lastName phone profileUrl')
-      .populate('membersList', 'firstName lastName phone profileUrl');
+      .populate('admins', 'firstName lastName phone profileUrl deviceId')
+      .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
@@ -302,8 +302,8 @@ export const makeAdmin = async (req,res) => {
         $push: { admins: member },
       },
       { new: true })
-        .populate('admins', 'firstName lastName phone profileUrl')
-        .populate('membersList', 'firstName lastName phone profileUrl');
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
@@ -353,8 +353,8 @@ export const removeAdmin = async (req,res) => {
         $pull: { admins: memberId },
       },
       { new: true })
-        .populate('admins', 'firstName lastName phone profileUrl')
-        .populate('membersList', 'firstName lastName phone profileUrl');
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
