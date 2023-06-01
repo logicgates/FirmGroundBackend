@@ -12,7 +12,7 @@ const matchSchema = new Schema({
             type: String,
             required: true,
         },
-        info: {
+        player: {
             type: Schema.Types.ObjectId,
             ref: 'User',
         },
