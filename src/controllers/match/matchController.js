@@ -71,7 +71,7 @@ export const createMatch = async (req, res) => {
     await chatRef.collection('messages').add(newMessage);
     chat.lastMessage = newMessage;
     await chat.save();
-    await match.populate('players.player', '-_id firstName lastName phone profileUrl');
+    await match.populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     res.status(201).send({ match, message: 'Match has been created.' });
   } catch (error) {
     errorMessage(res, error);
