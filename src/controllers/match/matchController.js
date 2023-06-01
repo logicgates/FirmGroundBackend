@@ -97,7 +97,7 @@ export const getAllMatches = async (req, res) => {
         .status(404)
         .send({ error: 'You are not a part of this chat group.' });
     const groupMatches = await Match.find({ chatId, 'deleted.isDeleted': false }, '-__v')
-      .populate('players.player', '-_id firstName lastName phone profileUrl');
+      .populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     if (!groupMatches)
       return res
         .status(404)
@@ -121,7 +121,7 @@ export const getActivePlayers = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
   const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
-    .populate('players.player', '-_id firstName lastName phone profileUrl');
+    .populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
   if (!match)
     return res
       .status(404)
@@ -183,7 +183,7 @@ export const updateMatch = async (req, res) => {
         lockTimer: '',
       }, 
       { new: true }
-    ).populate('players.player', '-_id firstName lastName phone profileUrl');
+    ).populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     await updateMatch.updatePaymentCollected();
     await updateMatch.updateLockTimer();
     if (!updateMatch)
@@ -248,7 +248,7 @@ export const updateParticiationStatus = async (req,res) => {
       }
     }
     const updatedMatch = await Match.findOneAndUpdate(filter, update, options)
-      .populate('players.player', '-_id firstName lastName phone profileUrl');
+      .populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     await updatedMatch.updatePaymentCollected();
     if (!updatedMatch)
       return res
@@ -305,7 +305,7 @@ export const updatePaymentStatus = async (req,res) => {
     const update = { 'players.$[elem].payment': payment };
     const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
     const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options)
-      .populate('players.player', '-_id firstName lastName phone profileUrl');
+      .populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     await updatedMatch.updatePaymentCollected();
     if (!updatedMatch)
       return res
@@ -333,7 +333,7 @@ export const addPlayerToTeam = async (req, res) => {
           .status(404)
           .send({ error: 'Chat is unavailable.' });
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
-      .populate('players.player', '-_id firstName lastName phone profileUrl');
+      .populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     if (!match)
       return res
         .status(404)
@@ -366,7 +366,7 @@ export const addPlayerToTeam = async (req, res) => {
     const update = { 'players.$[elem].team': team };
     const options = { arrayFilters: [{ 'elem._id': userId }], new: true };
     const updatedMatch = await Match.findByIdAndUpdate(filter, update, options)
-      .populate('players.player', '-_id firstName lastName phone profileUrl');
+      .populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     if (!updatedMatch)
         return res
           .status(404)
@@ -410,7 +410,7 @@ export const removePlayerFromTeam = async (req, res) => {
     const update = { 'players.$[elem].team': '' };
     const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
     const updatedMatch = await Match.findByIdAndUpdate(filter, update, options)
-      .populate('players.player', '-_id firstName lastName phone profileUrl');
+      .populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     if (!updatedMatch)
         return res
           .status(404)
@@ -452,7 +452,7 @@ export const cancelMatch = async (req, res) => {
       matchId,
       { isCancelled: true },
       { new: true }
-      ).populate('players.player', '-_id firstName lastName phone profileUrl');
+      ).populate('players.player', '-_id firstName lastName phone profileUrl deviceId');
     if (!cancelMatch)
       return res
         .status(404)
