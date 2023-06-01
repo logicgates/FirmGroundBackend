@@ -64,7 +64,7 @@ const userSchema = new Schema({
   },
   deviceId: {
     type: String,
-    default: '',
+    default: '000',
     trim: true,
   },
   isActive: {
