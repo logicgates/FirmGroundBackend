@@ -228,6 +228,10 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(403)
         .send({ error: 'You are already a part of a team.' });
+    if (player.participationStatus === status)
+      return res
+        .status(403)
+        .send({ error: `Status already set to ${player.participationStatus}.` });
     const filter = { _id: matchId };
     const update = { 'players.$[elem].participationStatus': status };
     const options = { arrayFilters: [{ 'elem._id': userId }], new: true };
