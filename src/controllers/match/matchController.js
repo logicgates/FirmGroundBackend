@@ -61,6 +61,7 @@ export const createMatch = async (req, res) => {
     await match.updateLockTimer();
     const newMessage = {
       senderId: userId,
+      deviceId: user.deviceId,
       userName: `${user.firstName} ${user.lastName}`,
       message: `Match was created by ${user.firstName}`,
       createdAt: new Date().toUTCString(),
@@ -149,15 +150,15 @@ export const getActivePlayers = async (req, res) => {
 
 export const updateMatch = async (req, res) => {
   const { matchId } = req.params;
-  const updateBody = req.body;
+  const { chatId } = req.body;
   const userId = req.session.userInfo?.userId;
   if (!userId)
       return res
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    await updateMatchSchema.validate(updateBody);
-    const chat = await Chat.findOne({ _id: updateBody.chatId, 'deleted.isDeleted': false }, '-__v');
+    await updateMatchSchema.validate(req.body);
+    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
         .status(404)
@@ -171,15 +172,15 @@ export const updateMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
-    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
-    if (!isAdmin)
+    const admin = chat.admins.find((admin) => admin.toString() === userId);
+    if (!admin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to update match details.' });
     const updateMatch = await Match.findByIdAndUpdate(
       matchId,
       {
-        ...updateBody,
+        ...req.body,
         lockTimer: '',
       }, 
       { new: true }
@@ -190,6 +191,18 @@ export const updateMatch = async (req, res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
+    const newMessage = {
+      senderId: userId,
+      deviceId: admin.deviceId,
+      userName: `${admin.firstName} ${admin.lastName}`,
+      message: `Match was updated by ${admin.firstName}`,
+      createdAt: new Date().toUTCString(),
+      type: 'notification',
+    };
+    const chatRef = db.collection('chats').doc(chatId);
+    await chatRef.collection('messages').add(newMessage);
+    chat.lastMessage = newMessage;
+    await chat.save();
     res.status(200).send({ match: updateMatch, message: 'Match has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -254,6 +267,19 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    const chat = await Chat.findOne({ _id: match.chatId, 'deleted.isDeleted': false }, '-__v');
+    const newMessage = {
+      senderId: userId,
+      deviceId: player.deviceId,
+      userName: `${player.firstName} ${player.lastName}`,
+      message: `${player.firstName} updated their status to '${player.participationStatus}' for match '${updatedMatch.title}'`,
+      createdAt: new Date().toUTCString(),
+      type: 'notification',
+    };
+    const chatRef = db.collection('chats').doc(match.chatId);
+    await chatRef.collection('messages').add(newMessage);
+    chat.lastMessage = newMessage;
+    await chat.save();
     res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -443,8 +469,8 @@ export const cancelMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
-    if (!isAdmin)
+    const admin = chat.admins.find((admin) => admin.toString() === userId);
+    if (!admin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to cancel a match.' });
@@ -457,6 +483,18 @@ export const cancelMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    const newMessage = {
+      senderId: userId,
+      deviceId: admin.deviceId,
+      userName: `${admin.firstName} ${admin.lastName}`,
+      message: `${admin.firstName} cancelled the match '${cancelMatch.title}'`,
+      createdAt: new Date().toUTCString(),
+      type: 'notification',
+    };
+    const chatRef = db.collection('chats').doc(match.chatId);
+    await chatRef.collection('messages').add(newMessage);
+    chat.lastMessage = newMessage;
+    await chat.save();
     res.status(201).send({ match: cancelMatch,  message: 'Match has been cancelled.' });
   } catch (error) {
     errorMessage(res, error);
