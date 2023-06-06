@@ -20,50 +20,87 @@ export const createChat = async (req, res) => {
         { membersList: { $elemMatch: { _id: parsedMembers[0]._id } } },
         { isPrivate: true },
         { isDeleted: false }
-    ]
+      ]
     }, '-__v');
     if (chatExists)
       return res
         .status(400)
         .send({ error: 'Private chat already exists.' });
-    const user = await User.findOne({ _id: userId }, '-deleted -__v');
-    const userObj = { 
-      _id: userId, 
-      firstName: user.firstName,
-      lastName: user.lastName, 
-      phone: user.phone,
-      profileUrl: user.profileUrl,
-    };
     const fileName = req.file ? await addToBucket(req.file, 'chat') : '';
+    const memberIds = isPrivate ? [userId, parsedMembers[0]._id] : parsedMembers.map(member => member._id);
     const newChat = await Chat.create({
       title: isPrivate ? 'Private chat' : title,
-      admins: isPrivate ? [] : userObj,
-      membersList: isPrivate ? [userObj, parsedMembers[0]] : [...parsedMembers],
+      admins: isPrivate ? [] : userId,
+      membersList: memberIds,
       creationDate: new Date(),
       chatImage: fileName,
       isPrivate,
       deleted: {},
       lastMessage: {}
     });
+
+    newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
+    await newChat.populate('admins', 'firstName lastName phone profileUrl deviceId');
+    await newChat.populate('membersList', 'firstName lastName phone profileUrl deviceId');
+
     // Add the new chat to Firestore
     const chatId = newChat._id.toString(); 
     const newChatRef = await db.collection('chats').doc(chatId).set({
       title: newChat.title,
       creationDate: newChat.creationDate,
       isPrivate: newChat.isPrivate,
+      admins: newChat.admins,
+      membersList: newChat.membersList,
+      chatImage: fileName,
+      lastMessage: {},
+      deleted: false,
     });
+
     if (!newChat || !newChatRef)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
   }
 };
 
-export const getChats = async (req, res) => {
+export const getChat = async (req, res) => {
+  const userId = req.session.userInfo?.userId;
+  const { chatId } = req.params;
+  if (!userId)
+      return res
+        .status(401)
+        .send({ error: 'User timeout. Please login again.' });
+  try {
+    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v')
+      .populate('admins', 'firstName lastName phone profileUrl deviceId')
+      .populate('membersList', 'firstName lastName phone profileUrl deviceId');
+    if (!chat)
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate) {
+      const member = chat.membersList.find((member) => member.toString() !== userId);
+      chat.title = `${member.firstName} ${member.lastName}`;
+    }
+    chat.lastMessage = 'Start chatting...';
+    const chatRef = db.collection('chats').doc(chat.id);
+    const messagesSnapshot = await chatRef
+      .collection('messages')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (!messagesSnapshot.empty)
+      chat.lastMessage = messagesSnapshot.docs[0].data();
+    res.status(200).send({ chat });
+  } catch (error) {
+    errorMessage(res, error);
+  }
+};
+
+export const getAllChats = async (req, res) => {
   const userId = req.session.userInfo?.userId;
   if (!userId)
       return res
@@ -72,19 +109,20 @@ export const getChats = async (req, res) => {
   try {
     const chats = await Chat.find({
         $or: [
-          { admins: { $elemMatch: { _id: userId } } },
-          { membersList: { $elemMatch: { _id: userId } } }
+          { admins: {  _id: userId } },
+          { membersList: { _id: userId } }
         ],
-        $and: [{ 'deleted.isDeleted': false }]
-      }, '-deleted -__v');
+        'deleted.isDeleted': false
+      }, '-__v');
     if (!chats) 
       return res
         .status(404)
         .send({ error: 'No chats were found.' });
     for (const chat of chats) {
       if (chat.isPrivate) {
-        const member = chat.membersList.find((member) => member._id !== userId);
-        chat.title = `${member.firstName} ${member.lastName}`;
+        const member = chat.membersList.find((member) => member.toString() !== userId);
+        const user = await User.findOne({ _id: member._id }).select('firstName lastName');
+        chat.title = `${user.firstName} ${user.lastName}`;
       }
       chat.lastMessage = 'Start chatting...';
       const chatRef = db.collection('chats').doc(chat.id);
@@ -119,7 +157,7 @@ export const updateChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
@@ -133,12 +171,27 @@ export const updateChat = async (req, res) => {
         title: req.body?.title,
         chatImage: fileName,
       },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    const chatRef = db.collection('chats').doc(chatId);
+    await chatRef.update({
+    title: updatedChat.title,
+    admins: updatedChat.admins,
+    membersList: updatedChat.membersList,
+    chatImage: fileName,
+    });
+    const messagesSnapshot = await chatRef
+      .collection('messages')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (!messagesSnapshot.empty)
+      chat.lastMessage = messagesSnapshot.docs[0].data();
     res.status(200).send({ chat: updatedChat });
   } catch (error) {
     errorMessage(res, error);
@@ -167,7 +220,7 @@ export const addMembers = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Private chat is limited to two members.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
@@ -175,19 +228,24 @@ export const addMembers = async (req, res) => {
     const updatedChat = await Chat.findByIdAndUpdate(
       chatId, 
       { $push: { membersList: { $each: members } } },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'New member(s) added successfully.' });
   } catch (error) {
     errorMessage(res, error);
   }
 };
 
-export const removeMemeber = async (req,res) => {
+export const removeMember = async (req,res) => {
   const { chatId } = req.params;
   const { memberId } = req.body;
   const userId = req.session.userInfo?.userId;
@@ -209,19 +267,25 @@ export const removeMemeber = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to remove a member.' });
-    const admin = chat.admins.find((admin) => admin._id === memberId);
-    const update = admin ? { $pull: { admins: { _id: memberId } } } : { $pull: { membersList: { _id: memberId } } };
+    const admin = chat.admins.find((admin) => admin.toString() === memberId);
+    const update = admin ? { $pull: { admins: memberId } } : { $pull: { membersList: memberId } };
     const options = { new: true };
-    const updatedChat = await Chat.findByIdAndUpdate( chatId, update, options );
+    const updatedChat = await Chat.findByIdAndUpdate( chatId, update, options )
+      .populate('admins', 'firstName lastName phone profileUrl deviceId')
+      .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'Member removed successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -250,12 +314,12 @@ export const makeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const member = chat.membersList.find((member) => member._id === memberId);
+    const member = chat.membersList.find((member) => member.toString() === memberId);
     if (!member)
       return res
         .status(404)
@@ -263,15 +327,20 @@ export const makeAdmin = async (req,res) => {
     const updatedChat = await Chat.findByIdAndUpdate(
       chatId, 
       {
-        $pull: { membersList: { _id: memberId } },
+        $pull: { membersList: memberId },
         $push: { admins: member },
       },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'Assigned as admin successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -300,12 +369,12 @@ export const removeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
-    const member = chat.admins.find((admin) => admin._id === memberId);
+    const member = chat.admins.find((admin) => admin.toString() === memberId);
     if (!member)
       return res
         .status(404)
@@ -314,14 +383,19 @@ export const removeAdmin = async (req,res) => {
       chatId, 
       {
         $push: { membersList: member },
-        $pull: { admins: { _id: memberId } },
+        $pull: { admins: memberId },
       },
-      { new: true }
-    );
+      { new: true })
+        .populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
     if (!updatedChat)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'Assigned as admin successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -349,44 +423,60 @@ export const leaveChat = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
-    const isMember = chat.membersList.find((member) => member._id === userId);
+    const isAdmin = chat.admins.includes(userId);
+    const isMember = chat.membersList.includes(userId);
     if (isAdmin) {
       const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
       const newAdmin = chat.membersList[randomIndex];
       if (chat.admins.length === 1) {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-          $pull: { 
-            admins: { _id: userId },
-            membersList: { _id: newAdmin._id },
-          }
-        });
+          $pull: {
+            admins: userId,
+            membersList: newAdmin,
+          }}, { new: true });
         updatedChat.admins.push(newAdmin);
         updatedChat.save();
+        await updatedChat.populate('admins', 'firstName lastName phone profileUrl deviceId')
+          .populate('membersList', 'firstName lastName phone profileUrl deviceId')
+          .execPopulate();
       if (!updatedChat)
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
+      await db.collection('chats').doc(chatId).update({
+        admins: updatedChat.admins,
+        membersList: updatedChat.membersList,
+      });
       res.status(200).send({ message: 'Left chat successfully.' });
       } else {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-          $pull: { admins: { _id: userId } },
-        });
+          $pull: { admins: userId },
+        }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
+          .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
         if (!updatedChat)
           return res
             .status(404)
             .send({ error: 'Something went wrong please try again later.' });
+        await db.collection('chats').doc(chatId).update({
+          admins: updatedChat.admins,
+          membersList: updatedChat.membersList,
+        });
         res.status(200).send({ message: 'You have left chat group successfully.' });
       }
     } else if (isMember) {
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-        $pull: { membersList: { _id: userId } },
-      });
+        $pull: { membersList: userId },
+      }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
       if (!updatedChat)
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-      res.status(200).send({ chat: updatedChat, message: 'Left chat successfully.' });
+      await db.collection('chats').doc(chatId).update({
+        admins: updatedChat.admins,
+        membersList: updatedChat.membersList,
+      });
+      res.status(200).send({ message: 'Left chat successfully.' });
     } else {
         return res
           .status(404)
@@ -418,21 +508,24 @@ export const deleteChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is already deleted.' });
-    const isAdmin = chat.admins.find((admin) => admin._id === userId);
+    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins can perform this action.' });
     await deleteFromBucket(chat.chatImage);
     const deleteChat = await Chat.findByIdAndUpdate(
-    chatId,
-    { deleted: { isDeleted: true, date: new Date() }, },
-    { new: true }
+      chatId,
+      { deleted: { isDeleted: true, date: new Date() }, },
+      { new: true }
     );
     if (!deleteChat)
-    return res
-      .status(404)
-      .send({ error: 'Something went wrong please try again later.' });
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      deleted: true,
+    });
     res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
     errorMessage(res, error);

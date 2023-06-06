@@ -62,6 +62,11 @@ const userSchema = new Schema({
     type: String,
     trim: true,
   },
+  deviceId: {
+    type: String,
+    default: '000',
+    trim: true,
+  },
   isActive: {
     type: Boolean,
     default: false,
@@ -72,6 +77,7 @@ const userSchema = new Schema({
   },
   profileImage: {
     type: String,
+    default: 'https://cdn.pixabay.com/photo/2017/11/10/05/48/user-2935527_1280.png',
     trim: true,
   },
   deleted: {

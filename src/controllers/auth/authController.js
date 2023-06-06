@@ -57,7 +57,7 @@ export const login = async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: '30d', algorithm: 'HS512' }
     );
-    User.findByIdAndUpdate(user?._id, { lastLoginDate: currentLoginDate });
+    await User.findByIdAndUpdate(user?._id, { lastLoginDate: currentLoginDate, deviceId: req.body?.deviceId });
     res.status(200).send({
       accessToken, 
       refreshToken,
@@ -96,7 +96,6 @@ export const registerAndSendCode = async (req, res) => {
       emergencyContact:'',
       status: false,
       lastLoginDate: '',
-      profileImage:'',
       registerDate: currentDate,
       deleted: {}
     });

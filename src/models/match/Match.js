@@ -12,59 +12,25 @@ const matchSchema = new Schema({
             type: String,
             required: true,
         },
-        name: {
-            type: String,
-            required: true
+        info: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
         },
         participationStatus: {
             type: String,
-            required: true
+            required: true,
+        },
+        isActive: {
+            type: Boolean,
+            required: true,
         },
         payment: {
             type: String,
-        }
-    }],
-    activePlayers: [{ // Players with participation status as 'in' only
-        _id: {
-            type: String,
         },
-        name: {
+        team: {
             type: String,
+            default: ''
         },
-        phone: {
-            type: String,
-        },
-        profileUrl: {
-            type: String,
-        }
-    }],
-    teamA: [{ // Players with participation status as 'in' only
-        _id: {
-            type: String,
-        },
-        name: {
-            type: String,
-        },
-        phone: {
-            type: String,
-        },
-        profileUrl: {
-            type: String,
-        }
-    }],
-    teamB: [{ // Players with participation status as 'in' only
-        _id: {
-            type: String,
-        },
-        name: {
-            type: String,
-        },
-        phone: {
-            type: String,
-        },
-        profileUrl: {
-            type: String,
-        }
     }],
     title: {
         type: String,
@@ -159,8 +125,20 @@ const matchSchema = new Schema({
     isCancelled: {
         type: Boolean,
         default: false,
-    }
-});
+    },
+    deleted: {
+        isDeleted: {
+            type: Boolean,
+            default: false,
+        },
+        date: {
+            type: Date,
+            default: null,
+        },
+    },
+    },
+    { timestamps: true }
+);
 
 matchSchema.methods.isOpenForPlayers = function () {
     const matchDateTime = moment(`${this.date} ${this.meetTime}`, 'DD-MM-YYYY hh:mm A');
