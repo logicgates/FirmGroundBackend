@@ -38,21 +38,28 @@ export const createChat = async (req, res) => {
       deleted: {},
       lastMessage: {}
     });
+
+    newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
+    await newChat.populate('admins', 'firstName lastName phone profileUrl deviceId');
+    await newChat.populate('membersList', 'firstName lastName phone profileUrl deviceId');
+
     // Add the new chat to Firestore
     const chatId = newChat._id.toString(); 
     const newChatRef = await db.collection('chats').doc(chatId).set({
       title: newChat.title,
       creationDate: newChat.creationDate,
       isPrivate: newChat.isPrivate,
+      admins: newChat.admins,
+      membersList: newChat.membersList,
+      chatImage: fileName,
+      lastMessage: {},
+      deleted: false,
     });
+
     if (!newChat || !newChatRef)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-
-    newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
-    await newChat.populate('admins', 'firstName lastName phone profileUrl deviceId');
-    await newChat.populate('membersList', 'firstName lastName phone profileUrl deviceId');
     res.status(201).send({ chat: newChat, message: 'Chat created.' });
   } catch (error) {
     errorMessage(res, error);
@@ -171,6 +178,20 @@ export const updateChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    const chatRef = db.collection('chats').doc(chatId);
+    await chatRef.update({
+    title: updatedChat.title,
+    admins: updatedChat.admins,
+    membersList: updatedChat.membersList,
+    chatImage: fileName,
+    });
+    const messagesSnapshot = await chatRef
+      .collection('messages')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
+    if (!messagesSnapshot.empty)
+      chat.lastMessage = messagesSnapshot.docs[0].data();
     res.status(200).send({ chat: updatedChat });
   } catch (error) {
     errorMessage(res, error);
@@ -214,6 +235,10 @@ export const addMembers = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'New member(s) added successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -257,6 +282,10 @@ export const removeMember = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'Member removed successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -308,6 +337,10 @@ export const makeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'Assigned as admin successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -359,6 +392,10 @@ export const removeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      admins: updatedChat.admins,
+      membersList: updatedChat.membersList,
+    });
     res.status(200).send({ chat: updatedChat, message: 'Assigned as admin successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -393,36 +430,52 @@ export const leaveChat = async (req,res) => {
       const newAdmin = chat.membersList[randomIndex];
       if (chat.admins.length === 1) {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-          $pull: { 
+          $pull: {
             admins: userId,
             membersList: newAdmin,
-          }
-        });
+          }}, { new: true });
         updatedChat.admins.push(newAdmin);
         updatedChat.save();
+        await updatedChat.populate('admins', 'firstName lastName phone profileUrl deviceId')
+          .populate('membersList', 'firstName lastName phone profileUrl deviceId')
+          .execPopulate();
       if (!updatedChat)
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
+      await db.collection('chats').doc(chatId).update({
+        admins: updatedChat.admins,
+        membersList: updatedChat.membersList,
+      });
       res.status(200).send({ message: 'Left chat successfully.' });
       } else {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
           $pull: { admins: userId },
-        });
+        }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
+          .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
         if (!updatedChat)
           return res
             .status(404)
             .send({ error: 'Something went wrong please try again later.' });
+        await db.collection('chats').doc(chatId).update({
+          admins: updatedChat.admins,
+          membersList: updatedChat.membersList,
+        });
         res.status(200).send({ message: 'You have left chat group successfully.' });
       }
     } else if (isMember) {
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
         $pull: { membersList: userId },
-      });
+      }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
       if (!updatedChat)
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
+      await db.collection('chats').doc(chatId).update({
+        admins: updatedChat.admins,
+        membersList: updatedChat.membersList,
+      });
       res.status(200).send({ message: 'Left chat successfully.' });
     } else {
         return res
@@ -470,6 +523,9 @@ export const deleteChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await db.collection('chats').doc(chatId).update({
+      deleted: true,
+    });
     res.status(201).send({ message: 'Chat has been deleted.' });
   } catch (error) {
     errorMessage(res, error);
