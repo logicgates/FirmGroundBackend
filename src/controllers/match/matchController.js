@@ -163,8 +163,7 @@ export const updateMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
-      .populate('players.info', '-_id firstName lastName phone profileUrl deviceId');
+    const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
     if (!match)
       return res
         .status(404)
@@ -173,8 +172,8 @@ export const updateMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
-    const admin = chat.admins.find((admin) => admin.toString() === userId);
-    if (!admin)
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    if (!isAdmin)
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to update match details.' });
@@ -192,11 +191,12 @@ export const updateMatch = async (req, res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
+    const user = await User.findOne({ _id: userId }, '-deleted -__v');
     const newMessage = {
       senderId: userId,
-      deviceId: admin.deviceId === undefined ? '000' : admin.deviceId,
-      userName: `${admin.firstName} ${admin.lastName}`,
-      message: `Match was updated by ${admin.firstName}`,
+      deviceId: user.deviceId ? '000' : user.deviceId,
+      userName: `${user.firstName} ${user.lastName}`,
+      message: `Match '${updateMatch.title}' was updated by ${user.firstName}`,
       createdAt: new Date().toUTCString(),
       type: 'notification',
     };
@@ -275,7 +275,7 @@ export const updateParticiationStatus = async (req,res) => {
       senderId: userId,
       deviceId: player.info.deviceId,
       userName: `${player.info.firstName} ${player.info.lastName}`,
-      message: `${player.info.firstName} updated their status to '${player.participationStatus}' for match '${updatedMatch.title}'`,
+      message: `${player.info.firstName} updated status to '${player.participationStatus}' for match '${updatedMatch.title}'.`,
       createdAt: new Date().toUTCString(),
       type: 'notification',
     };
@@ -385,7 +385,7 @@ export const addPlayerToTeam = async (req, res) => {
       if (!player.isActive) 
         return res
             .status(403)
-            .send({ error: `Player '${player.player.firstName} ${player.player.lastName}' is not active.` });
+            .send({ error: `Player '${player.info.firstName} ${player.info.lastName}' is not active.` });
     };
     if (members.length === 0)
       return res
@@ -400,7 +400,7 @@ export const addPlayerToTeam = async (req, res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-    res.status(200).send({ match: updatedMatch, message: `Player added to team ${team}.` });
+    res.status(200).send({ match: updatedMatch, message: `Player(s) added to team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
