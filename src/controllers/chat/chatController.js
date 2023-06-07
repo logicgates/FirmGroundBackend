@@ -50,8 +50,6 @@ export const createChat = async (req, res) => {
       title: newChat.title,
       creationDate: newChat.creationDate,
       isPrivate: newChat.isPrivate,
-      admins: newChat.admins,
-      membersList: newChat.membersList,
       chatImage: fileName,
       lastMessage: {},
       deleted: false,
@@ -181,10 +179,8 @@ export const updateChat = async (req, res) => {
         .send({ error: 'Something went wrong please try again later.' });
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.update({
-    title: updatedChat.title,
-    admins: updatedChat.admins,
-    membersList: updatedChat.membersList,
-    chatImage: fileName,
+      title: updatedChat.title,
+      chatImage: fileName,
     });
     const messagesSnapshot = await chatRef
       .collection('messages')
@@ -236,10 +232,6 @@ export const addMembers = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    await db.collection('chats').doc(chatId).update({
-      admins: updatedChat.admins,
-      membersList: updatedChat.membersList,
-    });
     res.status(200).send({ chat: updatedChat, message: 'New member(s) added successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -283,10 +275,6 @@ export const removeMember = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    await db.collection('chats').doc(chatId).update({
-      admins: updatedChat.admins,
-      membersList: updatedChat.membersList,
-    });
     res.status(200).send({ chat: updatedChat, message: 'Member removed successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -338,10 +326,6 @@ export const makeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    await db.collection('chats').doc(chatId).update({
-      admins: updatedChat.admins,
-      membersList: updatedChat.membersList,
-    });
     res.status(200).send({ chat: updatedChat, message: 'Assigned as admin successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -393,10 +377,6 @@ export const removeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    await db.collection('chats').doc(chatId).update({
-      admins: updatedChat.admins,
-      membersList: updatedChat.membersList,
-    });
     res.status(200).send({ chat: updatedChat, message: 'Assigned as admin successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -444,10 +424,6 @@ export const leaveChat = async (req,res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-      await db.collection('chats').doc(chatId).update({
-        admins: updatedChat.admins,
-        membersList: updatedChat.membersList,
-      });
       res.status(200).send({ message: 'Left chat successfully.' });
       } else {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
@@ -458,10 +434,6 @@ export const leaveChat = async (req,res) => {
           return res
             .status(404)
             .send({ error: 'Something went wrong please try again later.' });
-        await db.collection('chats').doc(chatId).update({
-          admins: updatedChat.admins,
-          membersList: updatedChat.membersList,
-        });
         res.status(200).send({ message: 'You have left chat group successfully.' });
       }
     } else if (isMember) {
@@ -473,10 +445,6 @@ export const leaveChat = async (req,res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-      await db.collection('chats').doc(chatId).update({
-        admins: updatedChat.admins,
-        membersList: updatedChat.membersList,
-      });
       res.status(200).send({ message: 'Left chat successfully.' });
     } else {
         return res
