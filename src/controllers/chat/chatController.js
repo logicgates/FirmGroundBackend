@@ -93,7 +93,7 @@ export const createChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    res.status(201).send({ chat: newChat, message: 'Chat created.' });
+    res.status(201).send({ chat: newChat, message: 'Chat created.', statusCount: '0 IN, 0 OUT, 0 PENDING' });
   } catch (error) {
     errorMessage(res, error);
   }
