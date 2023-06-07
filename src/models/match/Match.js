@@ -31,6 +31,10 @@ const matchSchema = new Schema({
             type: String,
             default: ''
         },
+        addition: {
+            type: Number,
+            default: 0,
+        },
     }],
     title: {
         type: String,
@@ -181,12 +185,15 @@ matchSchema.methods.updatePaymentCollected = async function() {
     );
     const numActivePlayers = activePlayers.length;
     match.cost = match.costPerPerson * numActivePlayers // Total cost
-    const paidPlayers = match.players.filter(
-        (player) => player.payment === 'paid'
-    );
-    const numPaidPlayers = paidPlayers.length;
-    match.collected = match.costPerPerson * numPaidPlayers; // Collected amount
+    let collectedAmount = 0;
+    for (const player of match.players) {
+        if (player.payment === 'paid') {
+            const playerCost = match.costPerPerson * (player.addition > 0 ? player.addition : 1);
+            collectedAmount += playerCost;
+        }
+    }
+    match.collected = collectedAmount; // Collected amount
     await match.save();
-}
+};
 
 export default mongoose.model('Match', matchSchema);
