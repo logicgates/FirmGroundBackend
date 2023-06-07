@@ -120,7 +120,7 @@ const matchSchema = new Schema({
     },
     lockTimer: {
         type: String,
-        default: '0 minutes',
+        default: '0',
     },
     isLocked: {
         type: Boolean,

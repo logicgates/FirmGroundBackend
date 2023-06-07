@@ -12,6 +12,39 @@ import {
 } from '../../schema/match/matchSchema.js'
 import db from '../../config/firebaseConfig.js';
 
+const calculateStatusCounts = async (groupMatches, userId, chatId) => {
+
+  const matches =
+    groupMatches !== undefined
+      ? groupMatches
+      : await Match.find({ chatId, 'deleted.isDeleted': false, isCancelled: false }, 'players');
+
+  const statusCount = {
+    IN: 0,
+    OUT: 0,
+    PENDING: 0,
+  };
+
+  for (const match of matches) {
+    for (const { _id, participationStatus } of match.players) {
+      if (_id && _id.toString() === userId) {
+        if (participationStatus === 'in') {
+          statusCount.IN++;
+          break;
+        } else if (participationStatus === 'out') {
+          statusCount.OUT++;
+          break;
+        } else if (participationStatus === 'pending') {
+          statusCount.PENDING++;
+          break;
+        }
+      }
+    }
+  }
+
+  return statusCount;
+};
+
 export const createMatch = async (req, res) => {
   const { chatId, costPerPerson, title } = req.body;
   const userId = req.session.userInfo?.userId;
@@ -74,7 +107,12 @@ export const createMatch = async (req, res) => {
     chat.matchExist = true;
     await chat.save();
     await match.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
-    res.status(201).send({ match, message: 'Match has been created.' });
+    const statusCount = await calculateStatusCounts(undefined, userId, chatId);
+    res.status(201).send({ 
+      match, 
+      message: 'Match has been created.',
+      statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING` 
+    });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -105,11 +143,14 @@ export const getAllMatches = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'No matches found for the chat group.' });
-    await Promise.all(groupMatches.map(async (match) => {
-      await match.updateLockTimer();
-      await match.updatePaymentCollected();
-    }));
-    res.status(200).send({ groupMatches });
+    await Promise.all(
+      groupMatches.map(async (match) => {
+        await match.updateLockTimer();
+        await match.updatePaymentCollected();
+      })
+    );
+    const statusCount = await calculateStatusCounts(groupMatches, userId, chatId);
+    res.status(200).send({ groupMatches, statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING` });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -330,7 +371,12 @@ export const updateParticiationStatus = async (req,res) => {
     await chatRef.collection('messages').add(newMessage);
     chat.lastMessage = newMessage;
     await chat.save();
-    res.status(200).send({ match: updatedMatch, message: 'Player participation status has been updated.' });
+    const statusCount = await calculateStatusCounts(undefined, userId, chatId);
+    res.status(200).send({ 
+      match: updatedMatch, 
+      message: 'Player participation status has been updated.', 
+      statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING` 
+    });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -527,7 +573,11 @@ export const cancelMatch = async (req, res) => {
         .send({ error: 'Only admins are allowed to cancel a match.' });
     const cancelMatch = await Match.findByIdAndUpdate(
       matchId,
-      { isCancelled: true },
+      { 
+        isCancelled: true,
+        isLocked: true,
+        lockTimer: '0',
+      },
       { new: true }
       ).populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
     if (!cancelMatch)
@@ -579,8 +629,12 @@ export const deleteMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to delete a match.' });
-    const deleteMatch = await Match.findByIdAndUpdate(matchId, { 
-      deleted: { isDeleted: true, date: new Date() } }
+    const deleteMatch = await Match.findByIdAndUpdate(matchId, 
+      { 
+        deleted: { isDeleted: true, date: new Date() },
+        isLocked: true,
+        lockTimer: '0', 
+      }
     );
     if (!deleteMatch)
       return res
