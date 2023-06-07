@@ -36,7 +36,8 @@ export const createChat = async (req, res) => {
       chatImage: fileName,
       isPrivate,
       deleted: {},
-      lastMessage: {}
+      lastMessage: {},
+      matchExist: false,
     });
 
     newChat.title = isPrivate ? `${parsedMembers[0].firstName} ${parsedMembers[0].lastName}` : newChat.title;
