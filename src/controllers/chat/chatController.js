@@ -150,14 +150,6 @@ export const getAllChats = async (req, res) => {
         chat.title = `${user.firstName} ${user.lastName}`;
       }
       chat.lastMessage = 'Start chatting...';
-      const chatRef = db.collection('chats').doc(chat.id);
-      const messagesSnapshot = await chatRef
-        .collection('messages')
-        .orderBy('createdAt', 'desc')
-        .limit(1)
-        .get();
-      if (!messagesSnapshot.empty) 
-        chat.lastMessage = messagesSnapshot.docs[0].data();
     }
     res.status(200).send({ chats });
   } catch (error) {
@@ -208,14 +200,8 @@ export const updateChat = async (req, res) => {
       title: updatedChat.title,
       chatImage: fileName,
     });
-    const messagesSnapshot = await chatRef
-      .collection('messages')
-      .orderBy('createdAt', 'desc')
-      .limit(1)
-      .get();
-    if (!messagesSnapshot.empty)
-      chat.lastMessage = messagesSnapshot.docs[0].data();
-    res.status(200).send({ chat: updatedChat });
+    const statusCount = await calculateStatusCounts(undefined, userId, chatId);
+    res.status(200).send({ chat: updatedChat, statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING`  });
   } catch (error) {
     errorMessage(res, error);
   }
