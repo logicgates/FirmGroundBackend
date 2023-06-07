@@ -1,8 +1,42 @@
 import { errorMessage } from '../../config/config.js';
 import Chat from '../../models/chat/ChatModel.js';
 import User from '../../models/user/User.js';
+import Match from '../../models/match/Match.js';
 import { deleteFromBucket, addToBucket } from '../../config/awsConfig.js';
 import db from '../../config/firebaseConfig.js';
+
+const calculateStatusCounts = async (groupMatches, userId, chatId) => {
+
+  const matches =
+    groupMatches !== undefined
+      ? groupMatches
+      : await Match.find({ chatId, 'deleted.isDeleted': false, isCancelled: false }, 'players');
+
+  const statusCount = {
+    IN: 0,
+    OUT: 0,
+    PENDING: 0,
+  };
+
+  for (const match of matches) {
+    for (const { _id, participationStatus } of match.players) {
+      if (_id && _id.toString() === userId) {
+        if (participationStatus === 'in') {
+          statusCount.IN++;
+          break;
+        } else if (participationStatus === 'out') {
+          statusCount.OUT++;
+          break;
+        } else if (participationStatus === 'pending') {
+          statusCount.PENDING++;
+          break;
+        }
+      }
+    }
+  }
+
+  return statusCount;
+};
 
 export const createChat = async (req, res) => {
   const { title, members } = req.body;
@@ -84,16 +118,8 @@ export const getChat = async (req, res) => {
       const member = chat.membersList.find((member) => member.toString() !== userId);
       chat.title = `${member.firstName} ${member.lastName}`;
     }
-    chat.lastMessage = 'Start chatting...';
-    const chatRef = db.collection('chats').doc(chat.id);
-    const messagesSnapshot = await chatRef
-      .collection('messages')
-      .orderBy('createdAt', 'desc')
-      .limit(1)
-      .get();
-    if (!messagesSnapshot.empty)
-      chat.lastMessage = messagesSnapshot.docs[0].data();
-    res.status(200).send({ chat });
+    const statusCount = await calculateStatusCounts(undefined, userId, chatId);
+    res.status(200).send({ chat, statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING`  });
   } catch (error) {
     errorMessage(res, error);
   }
