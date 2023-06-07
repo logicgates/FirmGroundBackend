@@ -42,6 +42,10 @@ export const updateMatchSchema = object({
     recurring: string(),
 });
 
+export const updateAdditionalPlayerSchema = object({
+    task: string().oneOf(['add', 'remove']).required('Addition count is required.'),
+});
+
 export const updateParticiationStatusSchema = object({
     status: string().oneOf(['in', 'out']).required('Participation status is required.'),
 });

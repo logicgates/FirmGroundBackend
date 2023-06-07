@@ -9,7 +9,8 @@ import {
     updateMatch, 
     updateParticiationStatus, 
     updatePaymentStatus,
-    removePlayerFromTeam
+    removePlayerFromTeam,
+    updatePlayerAddition
 } from '../../controllers/match/matchController.js';
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.get('/group-matches/:chatId', getAllMatches);
 router.get('/active-list/:matchId', getActivePlayers);
 router.post('/create', createMatch);
 router.put('/update/:matchId', updateMatch);
+router.put('/addition/:matchId', updatePlayerAddition);
 router.put('/update-status/:matchId', updateParticiationStatus);
 router.put('/update-payment/:matchId', updatePaymentStatus)
 router.put('/add-to-team/:matchId', addPlayerToTeam);

@@ -19,6 +19,10 @@ const chatSchema = new Schema(
     isPrivate: {
       type: Boolean,
     },
+    matchExist: {
+      type: Boolean,
+      default: false,
+    },
     chatImage: {
       type: String,
     },
