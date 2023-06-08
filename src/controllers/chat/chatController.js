@@ -60,7 +60,7 @@ export const createChat = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Private chat already exists.' });
-    const fileName = req.file ? await addToBucket(req.file, 'chat') : '';
+    const fileName = req.file ? await addToBucket(req.file, 'chat') : 'https://cdn.pixabay.com/photo/2017/11/10/05/46/group-2935521_1280.png';
     const memberIds = isPrivate ? [userId, parsedMembers[0]._id] : parsedMembers.map(member => member._id);
     const newChat = await Chat.create({
       title: isPrivate ? 'Private chat' : title,
@@ -126,9 +126,9 @@ export const getChat = async (req, res) => {
 export const getAllChats = async (req, res) => {
   const userId = req.session.userInfo?.userId;
   if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+    return res
+      .status(401)
+      .send({ error: 'User timeout. Please login again.' });
   try {
     const chats = await Chat.find({
         $or: [
@@ -141,14 +141,21 @@ export const getAllChats = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'No chats were found.' });
+    const chatsWithStatusCount = [];
     for (const chat of chats) {
       if (chat.isPrivate) {
         const member = chat.membersList.find((member) => member.toString() !== userId);
         const user = await User.findOne({ _id: member._id }).select('firstName lastName');
         chat.title = `${user.firstName} ${user.lastName}`;
+      } else {
+        const statusCount = await calculateStatusCounts(undefined, userId, chat._id);
+        chatsWithStatusCount.push({
+          ...chat.toObject(),
+          statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING`,
+        });
       }
     }
-    res.status(200).send({ chats });
+    res.status(200).send({ chats: chatsWithStatusCount });
   } catch (error) {
     errorMessage(res, error);
   }

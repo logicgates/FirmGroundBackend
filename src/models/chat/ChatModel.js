@@ -25,6 +25,7 @@ const chatSchema = new Schema(
     },
     chatImage: {
       type: String,
+      default: 'https://cdn.pixabay.com/photo/2017/11/10/05/46/group-2935521_1280.png'
     },
     deleted: {
       isDeleted: {
