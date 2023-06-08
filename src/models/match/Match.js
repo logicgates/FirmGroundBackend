@@ -180,16 +180,15 @@ matchSchema.methods.updateLockTimer = async function() {
 
 matchSchema.methods.updatePaymentCollected = async function() {
     const match = this;
-    const activePlayers = match.players.filter(
-        (player) => player.participationStatus === 'in' ||  player.participationStatus === 'pending'
+    const matchPlayers = match.players.filter(player =>
+        player.participationStatus === 'in' || player.participationStatus === 'pending'
     );
-    const numActivePlayers = activePlayers.length;
-    match.cost = match.costPerPerson * numActivePlayers // Total cost
+    match.cost = match.costPerPerson * matchPlayers.length; // Total cost
     let collectedAmount = 0;
     for (const player of match.players) {
         if (player.payment === 'paid') {
-            const playerCost = match.costPerPerson * (player.addition > 0 ? player.addition : 1);
-            collectedAmount += playerCost;
+        const playerCost = match.costPerPerson * (player.addition > 0 ? player.addition : 0);
+        collectedAmount += player.isActive ? playerCost + match.costPerPerson : playerCost;
         }
     }
     match.collected = collectedAmount; // Collected amount
