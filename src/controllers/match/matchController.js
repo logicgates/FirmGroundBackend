@@ -103,7 +103,6 @@ export const createMatch = async (req, res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
-    chat.lastMessage = newMessage;
     chat.matchExist = true;
     await chat.save();
     await match.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
@@ -245,8 +244,6 @@ export const updateMatch = async (req, res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
-    chat.lastMessage = newMessage;
-    await chat.save();
     res.status(200).send({ match: updateMatch, message: 'Match has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -369,8 +366,6 @@ export const updateParticiationStatus = async (req,res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
-    chat.lastMessage = newMessage;
-    await chat.save();
     const statusCount = await calculateStatusCounts(undefined, userId, chatId);
     res.status(200).send({ 
       match: updatedMatch, 
@@ -416,7 +411,7 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to update payment.' });
-    if (!player.isActive) 
+    if (!player.isActive && player.addition === 0) 
       return res
           .status(403)
           .send({ error: 'Player is not active.' });
@@ -594,8 +589,6 @@ export const cancelMatch = async (req, res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
-    chat.lastMessage = newMessage;
-    await chat.save();
     res.status(201).send({ match: cancelMatch,  message: 'Match has been cancelled.' });
   } catch (error) {
     errorMessage(res, error);
