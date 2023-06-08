@@ -26,9 +26,6 @@ const chatSchema = new Schema(
     chatImage: {
       type: String,
     },
-    lastMessage: {
-      type: Object,
-    },
     deleted: {
       isDeleted: {
         type: Boolean,

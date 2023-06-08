@@ -70,7 +70,6 @@ export const createChat = async (req, res) => {
       chatImage: fileName,
       isPrivate,
       deleted: {},
-      lastMessage: {},
       matchExist: false,
     });
 
@@ -85,7 +84,6 @@ export const createChat = async (req, res) => {
       creationDate: newChat.creationDate,
       isPrivate: newChat.isPrivate,
       chatImage: fileName,
-      lastMessage: {},
       deleted: false,
     });
 
@@ -149,7 +147,6 @@ export const getAllChats = async (req, res) => {
         const user = await User.findOne({ _id: member._id }).select('firstName lastName');
         chat.title = `${user.firstName} ${user.lastName}`;
       }
-      chat.lastMessage = 'Start chatting...';
     }
     res.status(200).send({ chats });
   } catch (error) {
