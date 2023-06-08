@@ -459,10 +459,6 @@ export const addPlayerToTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
-    if (!match)
-      return res
-        .status(404)
-        .send({ error: 'Match is closed.' });
     const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin)
       return res
@@ -470,7 +466,7 @@ export const addPlayerToTeam = async (req, res) => {
         .send({ error: 'Only admins are allowed to add players.' });
     for (const member of members) {
       const player = match.players.find((player) => player._id === member);
-      if (!player.isActive) 
+      if (!player.isActive && player.addition === 0) 
         return res
             .status(403)
             .send({ error: `Player '${player.info.firstName} ${player.info.lastName}' is not active.` });
@@ -560,7 +556,7 @@ export const cancelMatch = async (req, res) => {
     if (!chat)
       return res
         .status(404)
-        .send({ error: 'Chat is unavailable.' });
+        .send({ error: 'Chat not found.' });
     const admin = chat.admins.find((admin) => admin.toString() === userId);
     if (!admin)
       return res
