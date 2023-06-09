@@ -360,7 +360,7 @@ export const updateParticiationStatus = async (req,res) => {
       senderId: userId,
       deviceId: player.info.deviceId,
       userName: `${player.info.firstName} ${player.info.lastName}`,
-      message: `${player.info.firstName} updated status to '${player.participationStatus}' for match '${updatedMatch.title}'.`,
+      message: `${player.info.firstName} updated status to '${status}' for match '${updatedMatch.title}'.`,
       createdAt: new Date().toUTCString(),
       type: 'notification',
     };
