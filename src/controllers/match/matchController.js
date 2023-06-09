@@ -23,8 +23,10 @@ const calculateStatusCounts = async (groupMatches, userId, chatId) => {
     IN: 0,
     OUT: 0,
     PENDING: 0,
+    TOTAL: 0
   };
 
+  statusCount.TOTAL = matches.length;
   for (const match of matches) {
     for (const { _id, participationStatus } of match.players) {
       if (_id && _id.toString() === userId) {
@@ -110,7 +112,7 @@ export const createMatch = async (req, res) => {
     res.status(201).send({ 
       match, 
       message: 'Match has been created.',
-      statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING` 
+      statusCount
     });
   } catch (error) {
     errorMessage(res, error);
@@ -149,7 +151,7 @@ export const getAllMatches = async (req, res) => {
       })
     );
     const statusCount = await calculateStatusCounts(groupMatches, userId, chatId);
-    res.status(200).send({ groupMatches, statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING` });
+    res.status(200).send({ groupMatches, statusCount });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -369,7 +371,7 @@ export const updateParticiationStatus = async (req,res) => {
     res.status(200).send({ 
       match: updatedMatch, 
       message: 'Player participation status has been updated.', 
-      statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING` 
+      statusCount
     });
   } catch (error) {
     errorMessage(res, error);

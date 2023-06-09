@@ -16,8 +16,10 @@ const calculateStatusCounts = async (groupMatches, userId, chatId) => {
     IN: 0,
     OUT: 0,
     PENDING: 0,
+    TOTAL: 0
   };
 
+  statusCount.TOTAL = matches.length;
   for (const match of matches) {
     for (const { _id, participationStatus } of match.players) {
       if (_id && _id.toString() === userId) {
@@ -91,7 +93,8 @@ export const createChat = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    res.status(201).send({ chat: newChat, message: 'Chat created.', statusCount: '0 IN, 0 OUT, 0 PENDING' });
+    const statusCount = { IN: 0, OUT: 0, PENDING: 0, TOTAL: 0 };
+    res.status(201).send({ chat: newChat, message: 'Chat created.', statusCount});
   } catch (error) {
     errorMessage(res, error);
   }
@@ -117,7 +120,7 @@ export const getChat = async (req, res) => {
       chat.title = `${member.firstName} ${member.lastName}`;
     }
     const statusCount = await calculateStatusCounts(undefined, userId, chatId);
-    res.status(200).send({ chat, statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING`  });
+    res.status(200).send({ chat, statusCount });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -151,7 +154,7 @@ export const getAllChats = async (req, res) => {
         const statusCount = await calculateStatusCounts(undefined, userId, chat._id);
         chatsWithStatusCount.push({
           ...chat.toObject(),
-          statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING`,
+          statusCount,
         });
       }
     }
