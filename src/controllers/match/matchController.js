@@ -355,7 +355,6 @@ export const updateParticiationStatus = async (req,res) => {
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
     const chatId = match.chatId.toString();
-    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
     const newMessage = {
       senderId: userId,
       deviceId: player.info.deviceId,
