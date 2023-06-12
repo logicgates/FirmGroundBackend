@@ -4,6 +4,7 @@ import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import { deleteFromBucket, addToBucket } from '../../config/awsConfig.js';
 import db from '../../config/firebaseConfig.js';
+import Firestore from '@google-cloud/firestore';
 
 const calculateStatusCounts = async (groupMatches, userId, chatId) => {
 
@@ -259,7 +260,7 @@ export const addMembers = async (req, res) => {
         deviceId: userLoggedIn.deviceId,
         userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
         message: `${user.firstName} has been added.`,
-        createdAt: new Date().toUTCString(),
+        createdAt: Firestore.FieldValue.serverTimestamp(),
         type: 'notification',
       };
       const chatRef = db.collection('chats').doc(chatId);
@@ -315,7 +316,7 @@ export const removeMember = async (req,res) => {
       deviceId: userLoggedIn.deviceId,
       userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
       message: `${removedUser.firstName} has been removed.`,
-      createdAt: new Date().toUTCString(),
+      createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
@@ -378,7 +379,7 @@ export const makeAdmin = async (req,res) => {
       deviceId: userLoggedIn.deviceId,
       userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
       message: `${newAdmin.firstName} is now an admin.`,
-      createdAt: new Date().toUTCString(),
+      createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
@@ -441,7 +442,7 @@ export const removeAdmin = async (req,res) => {
       deviceId: userLoggedIn.deviceId,
       userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
       message: `${removedAdmin.firstName} is no longer an admin.`,
-      createdAt: new Date().toUTCString(),
+      createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
@@ -460,6 +461,7 @@ export const leaveChat = async (req,res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
+    const timeStamp = Firestore.FieldValue.serverTimestamp();
     const userLoggedIn = await User.findOne({ _id: userId }, '-deleted -__v');
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
     if (!chat) 
@@ -499,7 +501,7 @@ export const leaveChat = async (req,res) => {
         deviceId: userLoggedIn.deviceId,
         userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
         message: `${userLoggedIn.firstName} has left the chat.`,
-        createdAt: new Date().toUTCString(),
+        createdAt: timeStamp,
         type: 'notification',
       };
       const chatRef = db.collection('chats').doc(chatId);
@@ -519,7 +521,7 @@ export const leaveChat = async (req,res) => {
           deviceId: userLoggedIn.deviceId,
           userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
           message: `${userLoggedIn.firstName} has left the chat.`,
-          createdAt: new Date().toUTCString(),
+          createdAt: timeStamp,
           type: 'notification',
         };
         const chatRef = db.collection('chats').doc(chatId);
@@ -540,7 +542,7 @@ export const leaveChat = async (req,res) => {
           deviceId: userLoggedIn.deviceId,
           userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
           message: `${userLoggedIn.firstName} has left the chat.`,
-          createdAt: new Date().toUTCString(),
+          createdAt: timeStamp,
           type: 'notification',
         };
         const chatRef = db.collection('chats').doc(chatId);

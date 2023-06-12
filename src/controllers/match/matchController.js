@@ -11,6 +11,7 @@ import {
   updatePaymentStatusSchema
 } from '../../schema/match/matchSchema.js'
 import db from '../../config/firebaseConfig.js';
+import Firestore from '@google-cloud/firestore';
 
 const calculateStatusCounts = async (groupMatches, userId, chatId) => {
 
@@ -100,7 +101,7 @@ export const createMatch = async (req, res) => {
       deviceId: user.deviceId === undefined ? '000' : user.deviceId,
       userName: `${user.firstName} ${user.lastName}`,
       message: `Match was created by ${user.firstName}`,
-      createdAt: new Date().toUTCString(),
+      createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
@@ -241,7 +242,7 @@ export const updateMatch = async (req, res) => {
       deviceId: user.deviceId ? '000' : user.deviceId,
       userName: `${user.firstName} ${user.lastName}`,
       message: `Match '${updateMatch.title}' was updated by ${user.firstName}`,
-      createdAt: new Date().toUTCString(),
+      createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
@@ -362,7 +363,7 @@ export const updateParticiationStatus = async (req,res) => {
       deviceId: player.info.deviceId,
       userName: `${player.info.firstName} ${player.info.lastName}`,
       message: `${player.info.firstName} updated status to '${status}' for match '${updatedMatch.title}'.`,
-      createdAt: new Date().toUTCString(),
+      createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
@@ -581,7 +582,7 @@ export const cancelMatch = async (req, res) => {
       deviceId: admin.deviceId === undefined ? '000' : admin.deviceId,
       userName: `${admin.firstName} ${admin.lastName}`,
       message: `${admin.firstName} cancelled the match '${cancelMatch.title}'`,
-      createdAt: new Date().toUTCString(),
+      createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
     const chatRef = db.collection('chats').doc(chatId);
