@@ -12,6 +12,7 @@ import {
 } from '../../schema/match/matchSchema.js'
 import db from '../../config/firebaseConfig.js';
 import Firestore from '@google-cloud/firestore';
+import mongoose from 'mongoose';
 
 const calculateStatusCounts = async (groupMatches, userId, chatId) => {
 
@@ -85,7 +86,8 @@ export const createMatch = async (req, res) => {
         participationStatus: 'pending',
         isActive: false,
         payment: 'unpaid',
-        team: ''
+        team: '',
+        addition: 0
       })),
       cost: (costPerPerson || 0) * players.length,
       collected: 0,
@@ -276,7 +278,7 @@ export const updatePlayerAddition = async (req,res) => {
       return res
         .status(403)
         .send({ error: 'The match is no longer accepting new players.' });
-    const player = match.players.find((player) => player._id === userId);
+    const player = match.players.find((player) => (player._id === userId && player.number === 0));
     if (!player)
       return res
         .status(404)
@@ -285,14 +287,39 @@ export const updatePlayerAddition = async (req,res) => {
       return res
         .status(403)
         .send({ error: 'Changes cannot be made after payment.' });
+  
     const total = task === 'add' ? player.addition + 1 : player.addition - 1;
     const update = { 'players.$[elem].addition': total };
     const options = { arrayFilters: [{ 'elem._id': userId }], new: true };
-    const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options)
-      .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
+    const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options);
+
+    if (task === 'add') {
+      const newPlayer = {
+        _id: new mongoose.Types.ObjectId(),
+        parentId: player._id,
+        info: player.info,
+        participationStatus: true,
+        isActive: true,
+        payment: 'unpaid',
+        team: '',
+        number: player.addition + 1
+      };
+    
+      updatedMatch.players.push(newPlayer);
+      await updatedMatch.save();
+    } else if (task === 'remove' && player.addition > 0) {
+      updatedMatch.players = updatedMatch.players.filter(
+        (p) => !(p.parentId === player._id && p.number === player.addition)
+      );
+      await updatedMatch.save();
+    } else {
+      return res.status(404).send({ error: 'Task should be add or remove only.' });
+    }
+
+    await updatedMatch.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
     await updatedMatch.updatePaymentCollected();
     const action = task === 'add' ? 'added' : 'removed';
-    res.status(200).send({ match: updatedMatch, message: `Additional player has been ${action}` });
+    res.status(200).send({ match: updatedMatch.players, message: `Additional player has been ${action}` });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -422,7 +449,7 @@ export const updatePaymentStatus = async (req,res) => {
         .status(403)
         .send({ error: 'Player has already paid.' });
     const update = { 'players.$[elem].payment': payment };
-    const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
+    const options = { arrayFilters: [{ 'elem._id': memberId, 'elem.parentId': null }], new: true };
     const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options)
       .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
     await updatedMatch.updatePaymentCollected();
@@ -436,7 +463,7 @@ export const updatePaymentStatus = async (req,res) => {
   }
 };
 
-export const addPlayerToTeam = async (req, res) => {
+export const addPlayersToTeam = async (req, res) => {
   const { matchId } = req.params;
   const { chatId, team, members } = req.body;
   const userId = req.session.userInfo?.userId;
@@ -446,13 +473,17 @@ export const addPlayerToTeam = async (req, res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
     await addPlayerToTeamSchema.validate(req.body);
+    if (members.length === 0)
+      return res
+        .status(404)
+        .send({ error: `None selected to add to team-${team}.` });
     const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
       if (!chat)
         return res
           .status(404)
           .send({ error: 'Chat is unavailable.' });
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
-      .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
+      .populate('players.info', '-_id firstName lastName phone profileUrl deviceId');
     if (!match)
       return res
         .status(404)
@@ -466,27 +497,21 @@ export const addPlayerToTeam = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to add players.' });
-    for (const member of members) {
-      const player = match.players.find((player) => player._id === member);
-      if (!player.isActive && player.addition === 0) 
-        return res
-            .status(403)
-            .send({ error: `Player '${player.info.firstName} ${player.info.lastName}' is not active.` });
-    };
-    if (members.length === 0)
-      return res
-        .status(404)
-        .send({ error: `None selected to add to team-${team}.` });
+    
+    let updatedMatch = {};
     const filter = { _id: matchId };
     const update = { 'players.$[elem].team': team };
-    const options = { arrayFilters: [{ 'elem._id': userId }], new: true };
-    const updatedMatch = await Match.findByIdAndUpdate(filter, update, options)
-      .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
+    for (const member of members) {
+      const options = { arrayFilters: [{ 'elem._id': member }], new: true };
+      updatedMatch = await Match.findByIdAndUpdate(filter, update, options);
+    };
     if (!updatedMatch)
-        return res
-          .status(404)
-          .send({ error: 'Something went wrong please try again later.' });
-    res.status(200).send({ match: updatedMatch, message: `Player(s) added to team ${team}.` });
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    
+    await updatedMatch.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
+    res.status(200).send({ players: updatedMatch.players, message: `Player(s) added to team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -530,7 +555,7 @@ export const removePlayerFromTeam = async (req, res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-    res.status(200).send({ match: updatedMatch, message: `Player removed from team ${team}.` });
+    res.status(200).send({ players: updatedMatch.players, message: `Player removed from team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
