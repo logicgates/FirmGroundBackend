@@ -1,6 +1,6 @@
 import express from 'express';
 import { 
-    addPlayerToTeam,
+    addPlayersToTeam,
     createMatch,
     cancelMatch,
     deleteMatch, 
@@ -22,7 +22,7 @@ router.put('/update/:matchId', updateMatch);
 router.put('/addition/:matchId', updatePlayerAddition);
 router.put('/update-status/:matchId', updateParticiationStatus);
 router.put('/update-payment/:matchId', updatePaymentStatus)
-router.put('/add-to-team/:matchId', addPlayerToTeam);
+router.put('/add-to-team/:matchId', addPlayersToTeam);
 router.put('/remove-from-team/:matchId', removePlayerFromTeam);
 router.put('/cancel/:matchId', cancelMatch);
 router.delete('/delete/:matchId', deleteMatch);
