@@ -12,6 +12,10 @@ const matchSchema = new Schema({
             type: String,
             required: true,
         },
+        parentId: {
+            type: String,
+            default: null,
+        },
         info: {
             type: Schema.Types.ObjectId,
             ref: 'User',
@@ -33,8 +37,11 @@ const matchSchema = new Schema({
         },
         addition: {
             type: Number,
-            default: 0,
         },
+        number: {
+            type: Number,
+            default: 0
+        }
     }],
     title: {
         type: String,
