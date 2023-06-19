@@ -48,15 +48,6 @@ export const createMessage = async (req, res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     const messagesRef = await chatRef.collection('messages').add(newMessage);
-    const chat = await Chat.findByIdAndUpdate(
-      chatId,
-      { lastMessage: newMessage, },
-      { new: true }
-    );
-    if (!chat)
-      return res
-        .status(404)
-        .send({ error: 'last message not found.' });
     const messagesSnapshot = await chatRef
       .collection('messages')
       .orderBy('createdAt', 'desc')

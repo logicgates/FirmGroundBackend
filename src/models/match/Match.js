@@ -12,6 +12,10 @@ const matchSchema = new Schema({
             type: String,
             required: true,
         },
+        parentId: {
+            type: String,
+            default: null,
+        },
         info: {
             type: Schema.Types.ObjectId,
             ref: 'User',
@@ -31,6 +35,13 @@ const matchSchema = new Schema({
             type: String,
             default: ''
         },
+        addition: {
+            type: Number,
+        },
+        number: {
+            type: Number,
+            default: 0
+        }
     }],
     title: {
         type: String,
@@ -116,7 +127,7 @@ const matchSchema = new Schema({
     },
     lockTimer: {
         type: String,
-        default: '0 minutes',
+        default: '0',
     },
     isLocked: {
         type: Boolean,
@@ -176,17 +187,19 @@ matchSchema.methods.updateLockTimer = async function() {
 
 matchSchema.methods.updatePaymentCollected = async function() {
     const match = this;
-    const activePlayers = match.players.filter(
-        (player) => player.participationStatus === 'in' ||  player.participationStatus === 'pending'
+    const matchPlayers = match.players.filter(player =>
+        player.participationStatus === 'in' || player.participationStatus === 'pending'
     );
-    const numActivePlayers = activePlayers.length;
-    match.cost = match.costPerPerson * numActivePlayers // Total cost
-    const paidPlayers = match.players.filter(
-        (player) => player.payment === 'paid'
-    );
-    const numPaidPlayers = paidPlayers.length;
-    match.collected = match.costPerPerson * numPaidPlayers; // Collected amount
+    match.cost = match.costPerPerson * matchPlayers.length; // Total cost
+    let collectedAmount = 0;
+    for (const player of match.players) {
+        if (player.payment === 'paid') {
+        const playerCost = match.costPerPerson * (player.addition > 0 ? player.addition : 0);
+        collectedAmount += player.isActive ? playerCost + match.costPerPerson : playerCost;
+        }
+    }
+    match.collected = collectedAmount; // Collected amount
     await match.save();
-}
+};
 
 export default mongoose.model('Match', matchSchema);

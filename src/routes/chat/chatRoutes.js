@@ -24,7 +24,7 @@ router.get('/get-chat/:chatId', getChat);
 router.get('/get-chats', getAllChats);
 router.post('/create', upload.single('image'), createChat);
 router.put('/update/:chatId', upload.single('image'), updateChat);
-router.delete('/delete/:chatId', deleteChat);
+router.delete('/delete', deleteChat);
 
 router.put('/add-members/:chatId', addMembers);
 router.put('/remove-members/:chatId', removeMember);
