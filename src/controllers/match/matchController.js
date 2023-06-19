@@ -319,7 +319,7 @@ export const updatePlayerAddition = async (req,res) => {
     await updatedMatch.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
     await updatedMatch.updatePaymentCollected();
     const action = task === 'add' ? 'added' : 'removed';
-    res.status(200).send({ match: updatedMatch.players, message: `Additional player has been ${action}` });
+    res.status(200).send({ match: updatedMatch, message: `Additional player has been ${action}` });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -511,7 +511,7 @@ export const addPlayersToTeam = async (req, res) => {
         .send({ error: 'Something went wrong please try again later.' });
     
     await updatedMatch.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
-    res.status(200).send({ players: updatedMatch.players, message: `Player(s) added to team ${team}.` });
+    res.status(200).send({ match: updatedMatch, message: `Player(s) added to team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -555,7 +555,7 @@ export const removePlayerFromTeam = async (req, res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-    res.status(200).send({ players: updatedMatch.players, message: `Player removed from team ${team}.` });
+    res.status(200).send({ match: updatedMatch, message: `Player removed from team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
   }
