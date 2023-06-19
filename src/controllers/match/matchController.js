@@ -298,7 +298,7 @@ export const updatePlayerAddition = async (req,res) => {
         _id: new mongoose.Types.ObjectId(),
         parentId: player._id,
         info: player.info,
-        participationStatus: true,
+        participationStatus: 'in',
         isActive: true,
         payment: 'unpaid',
         team: '',
@@ -440,7 +440,7 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to update payment.' });
-    if (!player.isActive && player.addition === 0) 
+    if (!player.isActive) 
       return res
           .status(403)
           .send({ error: 'Player is not active.' });
@@ -449,7 +449,7 @@ export const updatePaymentStatus = async (req,res) => {
         .status(403)
         .send({ error: 'Player has already paid.' });
     const update = { 'players.$[elem].payment': payment };
-    const options = { arrayFilters: [{ 'elem._id': memberId, 'elem.parentId': null }], new: true };
+    const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
     const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options)
       .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
     await updatedMatch.updatePaymentCollected();
