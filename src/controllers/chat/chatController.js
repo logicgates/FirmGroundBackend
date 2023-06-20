@@ -216,7 +216,7 @@ export const updateChat = async (req, res) => {
     });
     const statusCount = await calculateStatusCounts(undefined, userId, chat._id);
     const chatsWithStatusCount = {
-      ...chat.toObject(),
+      ...updatedChat.toObject(),
       statusCount,
     };
     res.status(200).send({ chat: chatsWithStatusCount });
