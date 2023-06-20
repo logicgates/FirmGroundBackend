@@ -53,12 +53,12 @@ export const createChat = async (req, res) => {
     const isPrivate = parsedMembers.length === 1;
     const chatExists = isPrivate && await Chat.findOne({
       $and: [
-        { membersList: { $elemMatch: { _id: userId } } },
-        { membersList: { $elemMatch: { _id: parsedMembers[0]._id } } },
+        { membersList: { _id: userId } },
+        { membersList: { _id: parsedMembers[0]._id } },
         { isPrivate: true },
-        { isDeleted: false }
       ]
     }, '-__v');
+    console.log(chatExists)
     if (chatExists)
       return res
         .status(400)
@@ -119,9 +119,15 @@ export const getChat = async (req, res) => {
     if (chat.isPrivate) {
       const member = chat.membersList.find((member) => member.toString() !== userId);
       chat.title = `${member.firstName} ${member.lastName}`;
+      res.status(200).send({ chat });
+    } else {
+      const statusCount = await calculateStatusCounts(undefined, userId, chat._id);
+      const chatsWithStatusCount = {
+        ...chat.toObject(),
+        statusCount,
+      };
+      res.status(200).send({ chat: chatsWithStatusCount });
     }
-    const statusCount = await calculateStatusCounts(undefined, userId, chatId);
-    res.status(200).send({ chat, statusCount });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -151,6 +157,7 @@ export const getAllChats = async (req, res) => {
         const member = chat.membersList.find((member) => member.toString() !== userId);
         const user = await User.findOne({ _id: member._id }).select('firstName lastName');
         chat.title = `${user.firstName} ${user.lastName}`;
+        chatsWithStatusCount.push(chat);
       } else {
         const statusCount = await calculateStatusCounts(undefined, userId, chat._id);
         chatsWithStatusCount.push({
@@ -208,8 +215,12 @@ export const updateChat = async (req, res) => {
       title: updatedChat.title,
       chatImage: fileName,
     });
-    const statusCount = await calculateStatusCounts(undefined, userId, chatId);
-    res.status(200).send({ chat: updatedChat, statusCount: `${statusCount.IN} IN, ${statusCount.OUT} OUT, ${statusCount.PENDING} PENDING`  });
+    const statusCount = await calculateStatusCounts(undefined, userId, chat._id);
+    const chatsWithStatusCount = {
+      ...chat.toObject(),
+      statusCount,
+    };
+    res.status(200).send({ chat: chatsWithStatusCount });
   } catch (error) {
     errorMessage(res, error);
   }
