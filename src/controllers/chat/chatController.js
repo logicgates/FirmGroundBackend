@@ -58,7 +58,6 @@ export const createChat = async (req, res) => {
         { isPrivate: true },
       ]
     }, '-__v');
-    console.log(chatExists)
     if (chatExists)
       return res
         .status(400)
