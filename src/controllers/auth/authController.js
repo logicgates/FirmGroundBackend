@@ -27,7 +27,7 @@ const mailAddress = 'myfirmground@gmail.com';
 export const login = async (req, res) => {
   try {
     await loginSchema.validate(req.body);
-    const user = await User.findOne({email: req.body?.email});
+    const user = await User.findOne({email: req.body?.email.toLowerCase()});
     if (!user) 
       return res
         .status(404)
@@ -68,9 +68,10 @@ export const login = async (req, res) => {
 };
 
 export const registerAndSendCode = async (req, res) => {
+  const { email, phone } = req.body;
   try {
     await registerSchema.validate(req.body);
-    let emailExist = await User.findOne({email: req.body.email});
+    let emailExist = await User.findOne({email: email.toLowerCase()});
     if (emailExist) {
       if (!emailExist.isActive)
         return res
@@ -80,7 +81,7 @@ export const registerAndSendCode = async (req, res) => {
         .status(404)
         .send({ error: 'This email is already in use.' });
     }
-    let phoneExist = await User.findOne({phone: req.body.phone});
+    let phoneExist = await User.findOne({phone});
     if (phoneExist)
       return res
         .status(404)
@@ -90,6 +91,7 @@ export const registerAndSendCode = async (req, res) => {
     let currentDate = new Date();
     const user = await User.create({
       ...req.body,
+      email: email.toLowerCase(),
       password: hashPassword,
       city:'',
       emergencyName:'',
