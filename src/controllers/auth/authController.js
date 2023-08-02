@@ -145,9 +145,10 @@ export const registerAndSendCode = async (req, res) => {
 };
 
 export const resendRegisterCode = async (req, res) => {
+  const { email } = req.body;
   try {
     await resendVerifySchema.validate(req.body);
-    const user = await User.findOne({ email: req.body?.email }).exec();
+    const user = await User.findOne({ email: email.toLowerCase() }).exec();
     if (!user)
       return res
         .status(404)
@@ -248,9 +249,10 @@ export const verifyUserRegisteration = async (req, res) => {
 };
 
 export const sendForgotCode = async (req, res) => {
+  const { email } = req.body;
   try {
     await resendVerifySchema.validate(req.body);
-    let user = await User.findOne({email: req.body?.email});
+    let user = await User.findOne({email: email.toLowerCase()});
     if (!user)
       return res
         .status(404)
@@ -305,9 +307,10 @@ export const sendForgotCode = async (req, res) => {
 };
 
 export const resendVerifyForgotCode = async (req, res) => {
+  const { email } = req.body;
   try {
     await resendVerifySchema.validate(req.body);
-    const user = await User.findOne({ email: req.body?.email }).exec();
+    const user = await User.findOne({ email: email.toLowerCase() }).exec();
     if (!user)
       return res
         .status(404)
