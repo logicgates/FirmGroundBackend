@@ -19,7 +19,7 @@ const serviceAccount = {
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${process.env.PROJECT_ID}.asia-southeast1.firebasedatabase.app/`,
+  databaseURL: `https://${process.env.PROJECT_ID}.${process.env.S3_BUCKET_REGION}.firebasedatabase.app/`,
 });
 
 const db = admin.firestore();

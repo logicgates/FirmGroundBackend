@@ -62,7 +62,11 @@ export const createChat = async (req, res) => {
       return res
         .status(400)
         .send({ error: 'Private chat already exists.' });
-    const fileName = req.file ? await addToBucket(req.file, 'chat') : 'https://cdn.pixabay.com/photo/2017/11/10/05/46/group-2935521_1280.png';
+    const fileName = req.file 
+      ? await addToBucket(req.file, 'chat') 
+      : isPrivate 
+        ? 'https://cdn.pixabay.com/photo/2017/11/10/05/48/user-2935527_1280.png' 
+        : 'https://cdn.pixabay.com/photo/2017/11/10/05/46/group-2935521_1280.png';
     const memberIds = isPrivate ? [userId, parsedMembers[0]._id] : parsedMembers.map(member => member._id);
     const newChat = await Chat.create({
       title: isPrivate ? 'Private chat' : title,
@@ -116,7 +120,7 @@ export const getChat = async (req, res) => {
         .status(404)
         .send({ error: 'Chat was not found.' });
     if (chat.isPrivate) {
-      const member = chat.membersList.find((member) => member.toString() !== userId);
+      const member = chat.membersList.find((member) => member._id.toString() !== userId);
       chat.title = `${member.firstName} ${member.lastName}`;
       res.status(200).send({ chat });
     } else {
@@ -153,7 +157,7 @@ export const getAllChats = async (req, res) => {
     const chatsWithStatusCount = [];
     for (const chat of chats) {
       if (chat.isPrivate) {
-        const member = chat.membersList.find((member) => member.toString() !== userId);
+        const member = chat.membersList.find((member) => member._id.toString() !== userId);
         const user = await User.findOne({ _id: member._id }).select('firstName lastName');
         chat.title = `${user.firstName} ${user.lastName}`;
         chatsWithStatusCount.push(chat);
