@@ -234,6 +234,14 @@ export const addMembers = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
+    let addMembers = [];
+    if (members) {
+        members.forEach(member => addMembers.push({_id: member._id}));
+    } else {
+      return res
+        .status(404)
+        .send({ error: 'No user was selected.' });
+    }
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
     if (!chat) 
       return res
@@ -254,7 +262,7 @@ export const addMembers = async (req, res) => {
         .send({ error: 'Only admins are allowed to add new members.' });
     const updatedChat = await Chat.findByIdAndUpdate(
       chatId, 
-      { $push: { membersList: { $each: members } } },
+      { $push: { membersList: { $each: addMembers } } },
       { new: true })
         .populate('admins', 'firstName lastName phone profileUrl deviceId')
         .populate('membersList', 'firstName lastName phone profileUrl deviceId');
@@ -264,7 +272,7 @@ export const addMembers = async (req, res) => {
         .send({ error: 'Something went wrong please try again later.' });
     const userLoggedIn = updatedChat.admins.find((admin) => admin._id.toString() === userId);
     for (const member of members) {
-      const user = updatedChat.membersList.find((mbr) => mbr._id.toString() === member);
+      const user = updatedChat.membersList.find((mbr) => mbr._id.toString() === member._id.toString());
       const newMessage = {
         senderId: userId,
         deviceId: userLoggedIn.deviceId,
