@@ -50,7 +50,14 @@ export const updateUser = async (req, res) => {
       .send({ error: 'You are not authorized for this request.' });
   try {
     await updateUserSchema.validate(req.body);
-    const user = await User.findOne({ _id: userId }, '-deleted -__v -password');
+    const user = await User.findOne({ _id: userId }, 'profileImage');
+    if (updateBody.phone) {
+      const phoneExist = await User.findOne({ phone: updateBody.phone }, 'phone');
+      if (phoneExist)
+        return res
+          .status(400)
+          .send({ error: 'Phone number already in use.' });
+    }
     const fileName = req.file ? await addToBucket(req.file, 'profile') : user?.profileImage;
     if (fileName.startsWith('error'))
       return res
