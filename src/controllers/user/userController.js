@@ -55,7 +55,7 @@ export const updateUser = async (req, res) => {
       const phoneExist = await User.findOne({ phone: updateBody.phone }, 'phone');
       if (phoneExist)
         return res
-          .status(400)
+          .status(404)
           .send({ error: 'Phone number already in use.' });
     }
     const fileName = req.file ? await addToBucket(req.file, 'profile') : user?.profileImage;
