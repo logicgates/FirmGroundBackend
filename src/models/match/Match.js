@@ -85,14 +85,17 @@ const matchSchema = new Schema({
     },
     teamAColor: {
         type: String,
+        default: 'red',
         trim: true,
     },
     teamBColor: {
         type: String,
+        default: 'blue',
         trim: true,
     },
     referee: {
         type: Boolean,
+        default: false
     },
     turf: {
         type: String,
@@ -120,6 +123,7 @@ const matchSchema = new Schema({
     },
     recurring: {
         type: String,
+        default: false,
         trim: true,
     },
     creationDate: {
