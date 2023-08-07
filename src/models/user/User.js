@@ -25,12 +25,12 @@ const userSchema = new Schema({
   },
   phone: {
     type: String,
-    required: 'Your phone number is required',
     trim: true,
   },
   registerMethod: {
     type: String,
     require: true,
+    default: 'email',
     trim: true,
     enum: ['email', 'facebook', 'google'],
   },

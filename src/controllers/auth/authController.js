@@ -511,22 +511,26 @@ export const socialAccountLogin = async (req, res) => {
         { expiresIn: '30d', algorithm: 'HS512' }
       );
     } else {
-      const fileName = crypto.randomBytes(32).toString('hex');
-      const response = await axios.get(req.body?.profileImage, {
-        responseType: 'arraybuffer',
-      });
-      const buffer = Buffer.from(response.data, 'utf-8');
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: `profile/${fileName}`,
-        Body: buffer,
-      });
-      s3Client.send(command);
+      let filename = 'https://cdn.pixabay.com/photo/2017/11/10/05/48/user-2935527_1280.png';
+      if (req.body?.profileImage) {
+        const fileName = crypto.randomBytes(32).toString('hex');
+        const response = await axios.get(req.body?.profileImage, {
+          responseType: 'arraybuffer',
+        });
+        const buffer = Buffer.from(response.data, 'utf-8');
+        const command = new PutObjectCommand({
+          Bucket: bucketName,
+          Key: `profile/${fileName}`,
+          Body: buffer,
+        });
+        s3Client.send(command);
+        filename = `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}`;
+      }
       user = await User.create({
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         email: req.body.email,
-        profileImage: `${process.env.S3_BUCKET_ACCESS_URL}profile/${fileName}`,
+        profileImage: filename,
         registerMethod: req.body?.registerMethod,
         lastLoginAt: currentLoginDate,
       });

@@ -7,7 +7,7 @@ export const registerSchema = object({
     password: string().required('Password is required.').min(8, 'Password is too short - should be 8 chars minimum.'),
     dateOfBirth: string().required('Date of Birth is required.'),
     countryCode: string(),
-    phone: string().required('Contact Number is required.'),
+    phone: string(),
     emergencyName: string(),
     emergencyContact: string(),
     city: string()
