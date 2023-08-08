@@ -19,9 +19,17 @@ const serviceAccount = {
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${process.env.PROJECT_ID}.us-central.firebasedatabase.app/`,
+  databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.us-central.firebasedatabase.app/`,
 });
 
-const db = admin.firestore();
+admin.firestore().listCollections()
+  .then(() => {
+    console.log('Connected to Firebase successfully,', process.env.FIREBASE_PROJECT_ID);
+  })
+  .catch((error) => {
+    console.error('Error connecting to Firebase:', error);
+  });
+
+const db = admin.firestore()
 
 export default db;
