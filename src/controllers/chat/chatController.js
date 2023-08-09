@@ -58,10 +58,13 @@ export const createChat = async (req, res) => {
         { isPrivate: true },
       ]
     }, '-__v');
-    if (chatExists)
-      return res
-        .status(400)
-        .send({ error: 'Private chat already exists.' });
+    if (chatExists) {
+      const member = chatExists.membersList.find((member) => member._id.toString() !== userId);
+      const user = await User.findOne({ _id: member._id }).select('firstName lastName');
+      chatExists.title = `${user.firstName} ${user.lastName}`;
+      chatExists.chatImage = user.profileImage ? user.profileImage : chatExists.chatImage;
+      return res.status(200).send({ chat: chatExists, isAlreadyExist: true });
+    }
     const fileName = req.file 
       ? await addToBucket(req.file, 'chat') 
       : isPrivate 
@@ -98,7 +101,7 @@ export const createChat = async (req, res) => {
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
     const statusCount = { IN: 0, OUT: 0, PENDING: 0, TOTAL: 0 };
-    res.status(201).send({ chat: newChat, message: 'Chat created.', statusCount});
+    res.status(201).send({ chat: newChat, isAlreadyExist: false, message: 'Chat created.', statusCount});
   } catch (error) {
     errorMessage(res, error);
   }
