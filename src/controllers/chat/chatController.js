@@ -186,12 +186,13 @@ export const updateChat = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) 
-      return res
-        .status(404)
-        .send({ error: 'Chat was not found.' });
-    if (chat.deleted.isDeleted)
+    const chat = await Chat.findOne(
+      { 
+        _id: chatId, 
+        'deleted.isDeleted': false,
+        isPrivate: false
+      }, '-__v');
+    if (!chat)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -241,42 +242,48 @@ export const addMembers = async (req, res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    let addMembers = [];
-    if (members) {
-        members.forEach(member => addMembers.push({_id: member._id}));
-    } else {
-      return res
-        .status(404)
-        .send({ error: 'No user was selected.' });
+    const chat = await Chat.findOne({
+      _id: chatId,
+      'deleted.isDeleted': false,
+      isPrivate: false,
+    }).select('-__v');
+    if (!chat) {
+      return res.status(404).send({ error: 'Chat is unavailable.' });
     }
-    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) 
+
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    if (!isAdmin) {
       return res
-        .status(404)
-        .send({ error: 'Chat was not found.' });
-    if (chat.deleted.isDeleted)
-      return res
-        .status(404)
-        .send({ error: 'Chat is unavailable.' });
-    if (chat.isPrivate)
-      return res
-        .status(404)
-        .send({ error: 'Private chat is limited to two members.' });
-    const isAdmin = chat.admins.find((admin) => admin.toString() === userId);
-    if (!isAdmin)
-      return res
-        .status(404)
+        .status(403)
         .send({ error: 'Only admins are allowed to add new members.' });
+    }
+
+    const addMembers = members.filter((member) => {
+      const isAdmin = chat.admins.some(
+        (admin) => admin._id.toString() === member._id.toString()
+      );
+      const isMember = chat.membersList.some(
+        (mbr) => mbr._id.toString() === member._id.toString()
+      );
+      return !isAdmin && !isMember;
+    });
+    if (addMembers.length === 0) {
+      return res.status(400).send({ error: 'No valid members to add.' });
+    }
+
     const updatedChat = await Chat.findByIdAndUpdate(
-      chatId, 
+      chatId,
       { $push: { membersList: { $each: addMembers } } },
-      { new: true })
-        .populate('admins', 'firstName lastName phone profileUrl deviceId')
-        .populate('membersList', 'firstName lastName phone profileUrl deviceId');
-    if (!updatedChat)
+      { new: true }
+    )
+      .populate('admins', 'firstName lastName phone profileUrl deviceId')
+      .populate('membersList', 'firstName lastName phone profileUrl deviceId');
+    if (!updatedChat) {
       return res
-        .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
+        .status(500)
+        .send({ error: 'Something went wrong, please try again later.' });
+    }
+
     const userLoggedIn = updatedChat.admins.find((admin) => admin._id.toString() === userId);
     for (const member of members) {
       const user = updatedChat.membersList.find((mbr) => mbr._id.toString() === member._id.toString());
@@ -291,6 +298,7 @@ export const addMembers = async (req, res) => {
       const chatRef = db.collection('chats').doc(chatId);
       await chatRef.collection('messages').add(newMessage);
     }
+
     res.status(200).send({ chat: updatedChat, message: 'New member(s) added successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -306,16 +314,13 @@ export const removeMember = async (req,res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) 
-      return res
-        .status(404)
-        .send({ error: 'Chat was not found.' });
-    if (chat.isPrivate)
-      return res
-        .status(404)
-        .send({ error: 'Unable to perform action in private chat.' });
-    if (chat.deleted.isDeleted)
+    const chat = await Chat.findOne(
+      { 
+        _id: chatId, 
+        'deleted.isDeleted': false,
+        isPrivate: false
+      }, '-__v');
+    if (!chat)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -361,16 +366,13 @@ export const makeAdmin = async (req,res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) 
-      return res
-        .status(404)
-        .send({ error: 'Chat was not found.' });
-    if (chat.isPrivate)
-      return res
-        .status(404)
-        .send({ error: 'Unable to perform action in private chat.' });
-    if (chat.deleted.isDeleted)
+    const chat = await Chat.findOne(
+      { 
+        _id: chatId, 
+        'deleted.isDeleted': false,
+        isPrivate: false
+      }, '-__v');
+    if (!chat)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
@@ -425,16 +427,13 @@ export const removeAdmin = async (req,res) => {
         .send({ error: 'User timeout. Please login again.' });
   try {
     const userLoggedIn = await User.findOne({ _id: userId }, 'firstName lastName deviceId');
-    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
-    if (!chat) 
-      return res
-        .status(404)
-        .send({ error: 'Chat was not found.' });
-    if (chat.isPrivate)
-      return res
-        .status(404)
-        .send({ error: 'Unable to perform action in private chat.' });
-    if (chat.deleted.isDeleted)
+    const chat = await Chat.findOne(
+      { 
+        _id: chatId, 
+        'deleted.isDeleted': false,
+        isPrivate: false
+      }, '-__v');
+    if (!chat)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
