@@ -287,6 +287,10 @@ export const updatePlayerAddition = async (req,res) => {
       return res
         .status(403)
         .send({ error: 'Changes cannot be made after payment.' });
+    if (player.addition === 0 && task === 'remove')
+      return res
+        .status(403)
+        .send({ error: 'No additional players to remove.' });
   
     const total = task === 'add' ? player.addition + 1 : player.addition - 1;
     const update = { 'players.$[elem].addition': total };
