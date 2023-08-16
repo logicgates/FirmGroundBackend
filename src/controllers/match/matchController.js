@@ -296,6 +296,10 @@ export const updatePlayerAddition = async (req,res) => {
       return res
         .status(403)
         .send({ error: 'No additional players to remove.' });
+    if (match.maxPlayers === match.inPlayerCount)
+      return res
+        .status(403)
+        .send({ error: 'Max players for this match has reached.' });
   
     const total = task === 'add' ? player.addition + 1 : player.addition - 1;
     const update = { 'players.$[elem].addition': total };
@@ -372,7 +376,7 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(403)
         .send({ error: `Status already set to ${player.participationStatus}.` });
-    if (player.maxPlayers === match.inPlayerCount)
+    if (match.maxPlayers === match.inPlayerCount)
       return res
         .status(403)
         .send({ error: 'Max players for this match has reached.' });
