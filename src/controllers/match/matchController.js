@@ -50,7 +50,7 @@ const calculateStatusCounts = async (groupMatches, userId, chatId) => {
 };
 
 export const createMatch = async (req, res) => {
-  const { chatId, costPerPerson, title } = req.body;
+  const { chatId, costPerPerson, title, teamCount } = req.body;
   const userId = req.session.userInfo?.userId;
   if (!userId)
       return res
@@ -89,6 +89,7 @@ export const createMatch = async (req, res) => {
         team: '',
         addition: 0
       })),
+      maxPlayers: 2 * teamCount,
       cost: (costPerPerson || 0) * players.length,
       collected: 0,
       lockTimer: '',
@@ -366,6 +367,10 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(403)
         .send({ error: `Status already set to ${player.participationStatus}.` });
+    if (player.maxPlayers === match.players.includes(player.participationStatus === 'in').length)
+      return res
+        .status(403)
+        .send({ error: 'Max players for this match has reached.' });
     const filter = { _id: matchId };
     const update = { 'players.$[elem].participationStatus': status };
     const options = { arrayFilters: [{ 'elem._id': userId }], new: true };

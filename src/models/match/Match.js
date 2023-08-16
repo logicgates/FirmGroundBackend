@@ -43,6 +43,10 @@ const matchSchema = new Schema({
             default: 0
         }
     }],
+    maxPlayers: {
+        type: Number,
+        default: 22
+    },
     title: {
         type: String,
         trim: true,
