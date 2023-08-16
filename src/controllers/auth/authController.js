@@ -435,6 +435,8 @@ export const generateRefreshToken = async (req, res) => {
       email: user?.email,
       _id: user?.userId,
     }).exec();
+    const sessionUser = { userId: userInfo?._id, email: userInfo?.email };
+    req.session.userInfo = sessionUser;
     const newAccessToken = await jwt.sign(
       {
         user: { userId: userInfo?.id, email: userInfo?.email },
