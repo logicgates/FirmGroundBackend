@@ -439,11 +439,6 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
-    if (!isAdmin)
-      return res
-        .status(404)
-        .send({ error: 'Only admins are allowed to update payment.' });
     if (!player.isActive) 
       return res
           .status(403)
