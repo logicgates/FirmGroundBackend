@@ -54,11 +54,11 @@ async function checkPlayerInMatches (res, memberId, chatId) {
     const player = match.players.find((player) => (player._id.toString() === memberId));
     if (player) {
       if (player.payment === 'paid') {
-        res.status(403).send({ error: `${player.info.firstName} has a completed payment for upcoming match.` });
+        res.status(404).send({ error: `${player.info.firstName} has a completed payment for upcoming match.` });
         return false;
       }
       if (player.addition > 0) {
-        res.status(403).send({ error: `${player.info.firstName} has additional players for upcoming match.` });
+        res.status(404).send({ error: `${player.info.firstName} has additional players for upcoming match.` });
         return false;
       }
     }
@@ -331,7 +331,7 @@ export const addMembers = async (req, res) => {
     const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
     if (!isAdmin) {
       return res
-        .status(403)
+        .status(404)
         .send({ error: 'Only admins are allowed to add new members.' });
     }
 
