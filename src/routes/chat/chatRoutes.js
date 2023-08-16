@@ -8,7 +8,7 @@ import {
   removeMember,
   makeAdmin,
   removeAdmin,
-  leaveChats,
+  leaveChat,
   getChat
 } from '../../controllers/chat/chatController.js';
 import {
@@ -30,7 +30,7 @@ router.put('/add-members/:chatId', addMembers);
 router.put('/remove-members/:chatId', removeMember);
 router.put('/make-admin/:chatId', makeAdmin);
 router.put('/remove-admin/:chatId', removeAdmin);
-router.put('/leave-chats', leaveChats);
+router.put('/leave-chat/:chatId', leaveChat);
 
 router.get('/get-messages/:chatId', getMessages);
 router.post('/create-message/:chatId', createMessage);
