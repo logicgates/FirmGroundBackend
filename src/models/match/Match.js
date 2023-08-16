@@ -47,6 +47,10 @@ const matchSchema = new Schema({
         type: Number,
         default: 22
     },
+    inPlayerCount: {
+        type: Number,
+        default: 0
+    },
     title: {
         type: String,
         trim: true,
@@ -158,6 +162,13 @@ const matchSchema = new Schema({
     },
     { timestamps: true }
 );
+
+matchSchema.methods.updatePlayerCount = async function () {
+    const match = this;
+    const playerCount = match.players.filter((player) => (player.participationStatus === 'in')).length;
+    match.inPlayerCount = playerCount;
+    await match.save();
+};
 
 matchSchema.methods.isOpenForPlayers = function () {
     const matchDateTime = moment(`${this.date} ${this.meetTime}`, 'DD-MM-YYYY hh:mm A');
