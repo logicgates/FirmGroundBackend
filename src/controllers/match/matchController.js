@@ -443,10 +443,6 @@ export const updatePaymentStatus = async (req,res) => {
       return res
           .status(403)
           .send({ error: 'Player is not active.' });
-    if (player.payment === 'paid')
-      return res
-        .status(403)
-        .send({ error: 'Player has already paid.' });
     const update = { 'players.$[elem].payment': payment };
     const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
     const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options)
