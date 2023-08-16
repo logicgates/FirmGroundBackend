@@ -38,7 +38,8 @@ const calculateStatusCounts = async (userId, chatId) => {
   return statusCount;
 };
 
-async function removePlayerFromMatches (res, userId, chatId) {
+async function checkPlayerInMatches (res, memberId, chatId) {
+
   const matches = await Match.find(
     {
       chatId,
@@ -50,19 +51,67 @@ async function removePlayerFromMatches (res, userId, chatId) {
   ).populate('players.info', 'firstName');
 
   for (const match of matches) {
-    const player = match.players.find((player) => (player._id === userId));
+    const player = match.players.find((player) => (player._id.toString() === memberId));
     if (player) {
-      if (player.payment === 'paid')
-        return res.status(403).send({ error:`${player.info.firstName} cannot be removed due to completed payment.`});
-      if (player.addition > 0)
-        return res.status(403).send({ error:`${player.info.firstName} cannot be removed due to additional players.`});
+      if (player.payment === 'paid') {
+        res.status(403).send({ error: `${player.info.firstName} has a completed payment for upcoming match.` });
+        return false;
+      }
+      if (player.addition > 0) {
+        res.status(403).send({ error: `${player.info.firstName} has additional players for upcoming match.` });
+        return false;
+      }
     }
   }
 
+  return true;
+};
+
+async function addPlayersToMatches (memberIds, chatId) {
+
+  const playerData = memberIds.map((memberId) => ({
+    _id: memberId,
+    info: memberId,
+    participationStatus: 'pending',
+    isActive: false,
+    payment: 'unpaid',
+    team: '',
+    addition: 0
+  }))
+
+  const matches = await Match.find(
+    {
+      chatId,
+      'deleted.isDeleted': false,
+      isCancelled: false,
+      isLocked: false,
+    },
+    'players'
+  );
+
   for (const match of matches) {
-    const player = match.players.find((player) => (player._id === userId));
+      match.players.push(...playerData); 
+      await match.save(); // Await the save operation
+  }
+
+};
+
+async function removePlayerFromMatches (memberId, chatId) {
+
+  const matches = await Match.find(
+    {
+      chatId,
+      'deleted.isDeleted': false,
+      isCancelled: false,
+      isLocked: false,
+    },
+    'players'
+  ).populate('players.info', 'firstName');
+
+  for (const match of matches) {
+    const player = match.players.find((player) => (player._id.toString() === memberId));
     if (player) {
-      match.players.pull(userId); 
+      match.players.pull(memberId); 
       await match.save(); // Await the save operation
     }
   }
@@ -327,6 +376,8 @@ export const addMembers = async (req, res) => {
       await chatRef.collection('messages').add(newMessage);
     }
 
+    await addPlayersToMatches(addMembers, chatId);
+
     res.status(200).send({ chat: updatedChat, message: 'New member(s) added successfully.' });
   } catch (error) {
     errorMessage(res, error);
@@ -357,7 +408,8 @@ export const removeMember = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to remove a member.' });
-    await removePlayerFromMatches(res, userId, chatId);
+    const playerStatus = await checkPlayerInMatches(res, memberId, chatId);
+    if (!playerStatus) return;
     const admin = chat.admins.find((admin) => admin.toString() === memberId);
     const update = admin ? { $pull: { admins: memberId } } : { $pull: { membersList: memberId } };
     const options = { new: true };
@@ -381,6 +433,10 @@ export const removeMember = async (req,res) => {
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
     res.status(200).send({ chat: updatedChat, message: 'Member removed successfully.' });
+    
+    return new Promise(async () => {
+      await removePlayerFromMatches(memberId, chatId);
+    });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -455,7 +511,6 @@ export const removeAdmin = async (req,res) => {
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const userLoggedIn = await User.findOne({ _id: userId }, 'firstName lastName deviceId');
     const chat = await Chat.findOne(
       { 
         _id: chatId, 
@@ -489,6 +544,7 @@ export const removeAdmin = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    const userLoggedIn = updatedChat.admins.find((admin) => admin._id.toString() === userId);
     const removedAdmin = updatedChat.membersList.find((mbr) => mbr._id.toString() === memberId);
     const newMessage = {
       senderId: userId,
@@ -506,79 +562,74 @@ export const removeAdmin = async (req,res) => {
   }
 };
 
-export const leaveChats = async (req,res) => {
-  const { chatIds } = req.body;
+export const leaveChat = async (req,res) => {
+  const { chatId } = req.params;
   const userId = req.session.userInfo?.userId;
   if (!userId)
       return res
         .status(401)
         .send({ error: 'User timeout. Please login again.' });
   try {
-    const parsedchatIds = typeof chatIds === 'string' ? JSON.parse(chatIds) : chatIds;
     const timeStamp = Firestore.FieldValue.serverTimestamp();
-    let errors = [];
-    const userLoggedIn = await User.findOne({ _id: userId }, 'firstName lastName deviceId');
-    for (const chatId of parsedchatIds) {
-      const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false, isPrivate: false }, '-deleted -__v');
-      if (!chat) {
-        errors.push({ chatId, status: 404,  error: `Chat with id-${chatId} was not found.` });
-        continue;
-      }
-      const isAdmin = chat.admins.includes(userId);
-      const isMember = chat.membersList.includes(userId);
-      if (isAdmin) {
-        const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
-        const newAdmin = chat.membersList[randomIndex];
-        if (chat.admins.length === 1) {
-          const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-            $pull: {
-              admins: userId,
-              membersList: newAdmin,
-            }}, { new: true });
-          updatedChat.admins.push(newAdmin);
-          updatedChat.save();
-        if (!updatedChat) {
-          errors.push({ chatId, status: 404,  error: `Chat with id-${chatId} was not updated.` });
-          continue;
-        }
-        const newMessage = {
-          senderId: userId,
-          deviceId: userLoggedIn.deviceId,
-          userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
-          message: `${userLoggedIn.firstName} has left the chat.`,
-          createdAt: timeStamp,
-          type: 'notification',
-        };
-        const chatRef = db.collection('chats').doc(chatId);
-        await chatRef.collection('messages').add(newMessage);
-        continue;
-        } else {
-          const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-            $pull: { admins: userId } }, { new: true });
-          if (!updatedChat) {
-            errors.push({ chatId, status: 404,  error: `Chat with id-${chatId} was not updated.` });
-            continue;
-          }
-          const newMessage = {
-            senderId: userId,
-            deviceId: userLoggedIn.deviceId,
-            userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
-            message: `${userLoggedIn.firstName} has left the chat.`,
-            createdAt: timeStamp,
-            type: 'notification',
-          };
-          const chatRef = db.collection('chats').doc(chatId);
-          await chatRef.collection('messages').add(newMessage);
-          continue;
-        }
-      } else if (isMember) {
+    const userLoggedIn = await User.findOne({ _id: userId }, '-deleted -__v');
+    const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
+    if (!chat) 
+      return res
+        .status(404)
+        .send({ error: 'Chat was not found.' });
+    if (chat.isPrivate)
+      return res
+        .status(404)
+        .send({ error: 'Unable to perform action in private chat.' });
+    if (chat.deleted.isDeleted)
+      return res
+        .status(404)
+        .send({ error: 'Chat is unavailable.' });
+    const playerStatus = await checkPlayerInMatches(res, userId, chatId);
+    if (!playerStatus) return;
+    const isAdmin = chat.admins.includes(userId);
+    const isMember = chat.membersList.includes(userId);
+    if (isAdmin) {
+      const randomIndex = Math.floor(Math.random() * (chat.membersList.length - 1));
+      const newAdmin = chat.membersList[randomIndex];
+      if (chat.admins.length === 1) {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
-          $pull: { membersList: userId },
-        }, { new: true });
-        if (!updatedChat) {
-          errors.push({ chatId, status: 404, error: `Chat with id-${chatId} was not updated.` });
-          continue;
-        }
+          $pull: {
+            admins: userId,
+            membersList: newAdmin,
+          }}, { new: true });
+        updatedChat.admins.push(newAdmin);
+        updatedChat.save();
+        await updatedChat.populate('admins', 'firstName lastName phone profileUrl deviceId')
+          .populate('membersList', 'firstName lastName phone profileUrl deviceId')
+          .execPopulate();
+      if (!updatedChat)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+      const newMessage = {
+        senderId: userId,
+        deviceId: userLoggedIn.deviceId,
+        userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
+        message: `${userLoggedIn.firstName} has left the chat.`,
+        createdAt: timeStamp,
+        type: 'notification',
+      };
+      const chatRef = db.collection('chats').doc(chatId);
+      await chatRef.collection('messages').add(newMessage);
+      res.status(200).send({ message: 'Left chat successfully.' });
+      return new Promise(async () => {
+        await removePlayerFromMatches(userId, chatId);
+      });
+      } else {
+        const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+          $pull: { admins: userId },
+        }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
+          .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
+        if (!updatedChat)
+          return res
+            .status(404)
+            .send({ error: 'Something went wrong please try again later.' });
         const newMessage = {
           senderId: userId,
           deviceId: userLoggedIn.deviceId,
@@ -589,14 +640,39 @@ export const leaveChats = async (req,res) => {
         };
         const chatRef = db.collection('chats').doc(chatId);
         await chatRef.collection('messages').add(newMessage);
-        continue;
-      } else {
-        errors.push({ chatId, status: 404, error: `You are not part of chat '${chat.title}'.` });
-          continue;
+        res.status(200).send({ message: 'You have left chat group successfully.' });
+        return new Promise(async () => {
+          await removePlayerFromMatches(userId, chatId);
+        });
       }
+    } else if (isMember) {
+      const updatedChat = await Chat.findByIdAndUpdate(chatId, {
+        $pull: { membersList: userId },
+      }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
+        .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
+      if (!updatedChat)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+        const newMessage = {
+          senderId: userId,
+          deviceId: userLoggedIn.deviceId,
+          userName: `${userLoggedIn.firstName} ${userLoggedIn.lastName}`,
+          message: `${userLoggedIn.firstName} has left the chat.`,
+          createdAt: timeStamp,
+          type: 'notification',
+        };
+        const chatRef = db.collection('chats').doc(chatId);
+        await chatRef.collection('messages').add(newMessage);
+      res.status(200).send({ message: 'Left chat successfully.' });
+      return new Promise(async () => {
+        await removePlayerFromMatches(userId, chatId);
+      });
+    } else {
+        return res
+          .status(404)
+          .send({ error: 'You are no longer a part of this chat.' });
     }
-    const message = parsedchatIds.length === errors.length ? 'Error leaving chat(s).' : 'Left chat(s) successfully.';
-    res.status(200).send({ message, errors });
   } catch (error) {
     errorMessage(res, error);
   }

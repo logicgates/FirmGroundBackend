@@ -50,7 +50,7 @@ const calculateStatusCounts = async (groupMatches, userId, chatId) => {
 };
 
 export const createMatch = async (req, res) => {
-  const { chatId, costPerPerson, title } = req.body;
+  const { chatId, costPerPerson, title, teamCount } = req.body;
   const userId = req.session.userInfo?.userId;
   if (!userId)
       return res
@@ -89,6 +89,8 @@ export const createMatch = async (req, res) => {
         team: '',
         addition: 0
       })),
+      maxPlayers: 2 * teamCount,
+      inPlayerCount: players.length,
       cost: (costPerPerson || 0) * players.length,
       collected: 0,
       lockTimer: '',
@@ -147,14 +149,16 @@ export const getAllMatches = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'No matches found for the chat group.' });
-    await Promise.all(
+
+    const statusCount = await calculateStatusCounts(groupMatches, userId, chatId);
+    res.status(200).send({ groupMatches, statusCount });
+    return await Promise.all(
       groupMatches.map(async (match) => {
+        await match.updatePlayerCount();
         await match.updateLockTimer();
         await match.updatePaymentCollected();
       })
     );
-    const statusCount = await calculateStatusCounts(groupMatches, userId, chatId);
-    res.status(200).send({ groupMatches, statusCount });
   } catch (error) {
     errorMessage(res, error);
   }
@@ -249,6 +253,7 @@ export const updateMatch = async (req, res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
+    await updateMatch.updatePlayerCount();
     res.status(200).send({ match: updateMatch, message: 'Match has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -321,6 +326,7 @@ export const updatePlayerAddition = async (req,res) => {
     }
 
     await updatedMatch.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
+    await updatedMatch.updatePlayerCount();
     await updatedMatch.updatePaymentCollected();
     const action = task === 'add' ? 'added' : 'removed';
     res.status(200).send({ match: updatedMatch, message: `Additional player has been ${action}` });
@@ -366,6 +372,10 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(403)
         .send({ error: `Status already set to ${player.participationStatus}.` });
+    if (player.maxPlayers === match.playerCount)
+      return res
+        .status(403)
+        .send({ error: 'Max players for this match has reached.' });
     const filter = { _id: matchId };
     const update = { 'players.$[elem].participationStatus': status };
     const options = { arrayFilters: [{ 'elem._id': userId }], new: true };
@@ -439,19 +449,10 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
-    if (!isAdmin)
-      return res
-        .status(404)
-        .send({ error: 'Only admins are allowed to update payment.' });
     if (!player.isActive) 
       return res
           .status(403)
           .send({ error: 'Player is not active.' });
-    if (player.payment === 'paid')
-      return res
-        .status(403)
-        .send({ error: 'Player has already paid.' });
     const update = { 'players.$[elem].payment': payment };
     const options = { arrayFilters: [{ 'elem._id': memberId }], new: true };
     const updatedMatch = await Match.findByIdAndUpdate(matchId, update, options)
