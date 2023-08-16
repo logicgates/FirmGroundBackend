@@ -38,7 +38,8 @@ const calculateStatusCounts = async (userId, chatId) => {
   return statusCount;
 };
 
-async function removePlayerFromMatches (res, userId, chatId) {
+async function checkPlayerInMatches (res, memberId, chatId) {
+
   const matches = await Match.find(
     {
       chatId,
@@ -50,19 +51,38 @@ async function removePlayerFromMatches (res, userId, chatId) {
   ).populate('players.info', 'firstName');
 
   for (const match of matches) {
-    const player = match.players.find((player) => (player._id === userId));
+    const player = match.players.find((player) => (player._id.toString() === memberId));
     if (player) {
-      if (player.payment === 'paid')
-        return res.status(403).send({ error:`${player.info.firstName} cannot be removed due to completed payment.`});
-      if (player.addition > 0)
-        return res.status(403).send({ error:`${player.info.firstName} cannot be removed due to additional players.`});
+      if (player.payment === 'paid') {
+        res.status(403).send({ error: `${player.info.firstName} has a completed payment for upcoming match.` });
+        return false;
+      }
+      if (player.addition > 0) {
+        res.status(403).send({ error: `${player.info.firstName} has additional players for upcoming match.` });
+        return false;
+      }
     }
   }
 
+  return true;
+};
+
+async function removePlayerFromMatches (memberId, chatId) {
+
+  const matches = await Match.find(
+    {
+      chatId,
+      'deleted.isDeleted': false,
+      isCancelled: false,
+      isLocked: false,
+    },
+    'players'
+  ).populate('players.info', 'firstName');
+
   for (const match of matches) {
-    const player = match.players.find((player) => (player._id === userId));
+    const player = match.players.find((player) => (player._id.toString() === memberId));
     if (player) {
-      match.players.pull(userId); 
+      match.players.pull(memberId); 
       await match.save(); // Await the save operation
     }
   }
@@ -357,7 +377,8 @@ export const removeMember = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to remove a member.' });
-    await removePlayerFromMatches(res, userId, chatId);
+    const playerStatus = await checkPlayerInMatches(res, memberId, chatId);
+    if (!playerStatus) return;
     const admin = chat.admins.find((admin) => admin.toString() === memberId);
     const update = admin ? { $pull: { admins: memberId } } : { $pull: { membersList: memberId } };
     const options = { new: true };
@@ -381,6 +402,10 @@ export const removeMember = async (req,res) => {
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
     res.status(200).send({ chat: updatedChat, message: 'Member removed successfully.' });
+    
+    return new Promise(async () => {
+      await removePlayerFromMatches(memberId, chatId);
+    });
   } catch (error) {
     errorMessage(res, error);
   }
