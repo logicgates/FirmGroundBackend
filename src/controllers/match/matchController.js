@@ -409,6 +409,7 @@ export const updateParticiationStatus = async (req,res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
+    await updatedMatch.updatePlayerCount();
     const statusCount = await calculateStatusCounts(undefined, userId, chatId);
     res.status(200).send({ 
       match: updatedMatch, 

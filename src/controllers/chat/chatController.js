@@ -38,7 +38,7 @@ const calculateStatusCounts = async (userId, chatId) => {
   return statusCount;
 };
 
-async function checkPlayerInMatches (res, memberId, chatId) {
+async function checkPlayerInMatches (res, userId, memberId, chatId) {
 
   const matches = await Match.find(
     {
@@ -52,13 +52,14 @@ async function checkPlayerInMatches (res, memberId, chatId) {
 
   for (const match of matches) {
     const player = match.players.find((player) => (player._id.toString() === memberId));
+    const playerName = memberId === userId ? 'You have' : `${player.info.firstName} has`;
     if (player) {
       if (player.payment === 'paid') {
-        res.status(404).send({ error: `${player.info.firstName} has a completed payment for upcoming match.` });
+        res.status(404).send({ error: `${playerName} a completed payment for upcoming match.` });
         return false;
       }
       if (player.addition > 0) {
-        res.status(404).send({ error: `${player.info.firstName} has additional players for upcoming match.` });
+        res.status(404).send({ error: `${playerName} additional players for upcoming match.` });
         return false;
       }
     }
@@ -408,7 +409,7 @@ export const removeMember = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Only admins are allowed to remove a member.' });
-    const playerStatus = await checkPlayerInMatches(res, memberId, chatId);
+    const playerStatus = await checkPlayerInMatches(res, userId, memberId, chatId);
     if (!playerStatus) return;
     const admin = chat.admins.find((admin) => admin.toString() === memberId);
     const update = admin ? { $pull: { admins: memberId } } : { $pull: { membersList: memberId } };
@@ -585,7 +586,7 @@ export const leaveChat = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const playerStatus = await checkPlayerInMatches(res, userId, chatId);
+    const playerStatus = await checkPlayerInMatches(res, userId, userId, chatId);
     if (!playerStatus) return;
     const isAdmin = chat.admins.includes(userId);
     const isMember = chat.membersList.includes(userId);
@@ -600,9 +601,6 @@ export const leaveChat = async (req,res) => {
           }}, { new: true });
         updatedChat.admins.push(newAdmin);
         updatedChat.save();
-        await updatedChat.populate('admins', 'firstName lastName phone profileUrl deviceId')
-          .populate('membersList', 'firstName lastName phone profileUrl deviceId')
-          .execPopulate();
       if (!updatedChat)
         return res
           .status(404)
@@ -624,8 +622,7 @@ export const leaveChat = async (req,res) => {
       } else {
         const updatedChat = await Chat.findByIdAndUpdate(chatId, {
           $pull: { admins: userId },
-        }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
-          .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
+        }, { new: true });
         if (!updatedChat)
           return res
             .status(404)
@@ -648,8 +645,7 @@ export const leaveChat = async (req,res) => {
     } else if (isMember) {
       const updatedChat = await Chat.findByIdAndUpdate(chatId, {
         $pull: { membersList: userId },
-      }, { new: true }).populate('admins', 'firstName lastName phone profileUrl deviceId')
-        .populate('membersList', 'firstName lastName phone profileUrl deviceId');;
+      }, { new: true });
       if (!updatedChat)
         return res
           .status(404)
