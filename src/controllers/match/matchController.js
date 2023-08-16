@@ -89,7 +89,7 @@ export const createMatch = async (req, res) => {
         team: '',
         addition: 0
       })),
-      maxPlayers: 2 * teamCount,
+      maxPlayers: teamCount ? 2 * parseInt(teamCount) : 11,
       inPlayerCount: players.length,
       cost: (costPerPerson || 0) * players.length,
       collected: 0,
@@ -372,7 +372,7 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(403)
         .send({ error: `Status already set to ${player.participationStatus}.` });
-    if (player.maxPlayers === match.playerCount)
+    if (player.maxPlayers === match.inPlayerCount)
       return res
         .status(403)
         .send({ error: 'Max players for this match has reached.' });
