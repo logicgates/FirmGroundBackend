@@ -10,6 +10,7 @@ import {
   verifyUserRegisterationSchema,
   socialRegisterSchema
 } from '../../schema/user/userSchema.js'
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import User from '../../models/user/User.js';
 import sgMail from '@sendgrid/mail';
 import jwt from 'jsonwebtoken';
