@@ -197,7 +197,7 @@ matchSchema.methods.updateLockTimer = async function() {
         else if (match.isLocked && kickOffTime.isBefore(currentTime.add(matchDuration, 'minutes'))) {
             match.isCompleted = true;
         }
-        else if (!match.isLocked && kickOffTime.isBefore(currentTime.add(48, 'hours'))) {
+        else if (!match.isLocked && kickOffTime.isBefore(currentTime.add(24, 'hours'))) {
             match.isLocked = true;
             match.lockTimer = 0;
         }
