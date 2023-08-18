@@ -236,8 +236,6 @@ export const updateMatch = async (req, res) => {
       }, 
       { new: true }
     ).populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
-    await updateMatch.updatePaymentCollected();
-    await updateMatch.updateLockTimer();
     if (!updateMatch)
         return res
           .status(404)
@@ -254,6 +252,7 @@ export const updateMatch = async (req, res) => {
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
     await updateMatch.updatePlayerCount();
+    await updateMatch.updateLockTimer();
     res.status(200).send({ match: updateMatch, message: 'Match has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -359,6 +358,7 @@ export const updateParticiationStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
+    await match.updateLockTimer();
     if (!match.isOpenForPlayers())
       return res
         .status(403)
@@ -397,7 +397,6 @@ export const updateParticiationStatus = async (req,res) => {
     }
     const updatedMatch = await Match.findOneAndUpdate(filter, update, options)
       .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
-    await updatedMatch.updatePaymentCollected();
     if (!updatedMatch)
       return res
         .status(404)
@@ -467,6 +466,7 @@ export const updatePaymentStatus = async (req,res) => {
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
+    await updatedMatch.updateLockTimer();
     res.status(200).send({ match: updatedMatch, message: 'Player payment status has been updated.' });
   } catch (error) {
     errorMessage(res, error);
@@ -521,6 +521,7 @@ export const addPlayersToTeam = async (req, res) => {
         .send({ error: 'Something went wrong please try again later.' });
     
     await updatedMatch.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
+    await updatedMatch.updateLockTimer();
     res.status(200).send({ match: updatedMatch, message: `Player(s) added to team ${team}.` });
   } catch (error) {
     errorMessage(res, error);
@@ -562,9 +563,10 @@ export const removePlayerFromTeam = async (req, res) => {
     const updatedMatch = await Match.findByIdAndUpdate(filter, update, options)
       .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
     if (!updatedMatch)
-        return res
-          .status(404)
-          .send({ error: 'Something went wrong please try again later.' });
+      return res
+        .status(404)
+        .send({ error: 'Something went wrong please try again later.' });
+    await updatedMatch.updateLockTimer();
     res.status(200).send({ match: updatedMatch, message: `Player removed from team ${team}.` });
   } catch (error) {
     errorMessage(res, error);

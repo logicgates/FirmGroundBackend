@@ -171,37 +171,44 @@ matchSchema.methods.updatePlayerCount = async function () {
 };
 
 matchSchema.methods.isOpenForPlayers = function () {
-    const matchDateTime = moment(`${this.date} ${this.meetTime}`, 'DD-MM-YYYY hh:mm A');
-    const currentDateTime = moment();
-    return currentDateTime.isBefore(matchDateTime);
+    const match = this;
+    if (!match.isLocked) {
+        const matchDateTime = moment(`${match.date} ${match.meetTime}`, 'DD-MM-YYYY hh:mm A');
+        const currentDateTime = moment();
+        return currentDateTime.isBefore(matchDateTime);
+    } else {
+        return false;
+    }
 };
 
 matchSchema.methods.updateLockTimer = async function() {
     const match = this;
-    const currentTime = moment();
-    const kickOffTime = moment(`${match.date} ${match.kickOff}`, 'DD-MM-YYYY hh:mm A');
-    if (match.isCancelled) {
-        match.lockTimer = 0;
-    }
-    else if (kickOffTime.isBefore(currentTime.subtract(72, 'hours'))) {
-        match.isLocked = true;
-        match.lockTimer = 0;
-    }
-    else {
-        // const lockTimeRemaining = Math.ceil(kickOffTime.diff(currentTime, 'minutes'));
-        const lockTimeRemaining = moment.duration(kickOffTime.diff(currentTime));
-        const days = lockTimeRemaining.days();
-        const hours = lockTimeRemaining.hours();
-        const minutes = lockTimeRemaining.minutes();
-        let lockTimerString = '';
-        if (days > 0) {
-            lockTimerString += `${days} days `;
+    if (!match.isLocked) {
+        const currentTime = moment();
+        const kickOffTime = moment(`${match.date} ${match.kickOff}`, 'DD-MM-YYYY hh:mm A');
+        if (match.isCancelled) {
+            match.lockTimer = 0;
         }
-        lockTimerString += `${hours}:${minutes < 10 ? '0' : ''}${minutes}`;
-        match.isLocked = false;
-        match.lockTimer = lockTimerString;
+        else if (kickOffTime.isBefore(currentTime.add(48, 'hours'))) {
+            match.isLocked = true;
+            match.lockTimer = 0;
+        }
+        else {
+            // const lockTimeRemaining = Math.ceil(kickOffTime.diff(currentTime, 'minutes'));
+            const lockTimeRemaining = moment.duration(kickOffTime.diff(currentTime));
+            const days = lockTimeRemaining.days();
+            const hours = lockTimeRemaining.hours();
+            const minutes = lockTimeRemaining.minutes();
+            let lockTimerString = '';
+            if (days > 0) {
+                lockTimerString += `${days} days `;
+            }
+            lockTimerString += `${hours}:${minutes < 10 ? '0' : ''}${minutes}`;
+            match.isLocked = false;
+            match.lockTimer = lockTimerString;
+        }
+        await match.save();
     }
-    await match.save();
 };
 
 matchSchema.methods.updatePaymentCollected = async function() {
