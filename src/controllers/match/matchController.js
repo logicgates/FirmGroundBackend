@@ -251,6 +251,7 @@ export const updateMatch = async (req, res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
+    await updateMatch.updatePaymentCollected();
     await updateMatch.updatePlayerCount();
     await updateMatch.updateLockTimer();
     res.status(200).send({ match: updateMatch, message: 'Match has been updated.' });
@@ -412,6 +413,7 @@ export const updateParticiationStatus = async (req,res) => {
     };
     const chatRef = db.collection('chats').doc(chatId);
     await chatRef.collection('messages').add(newMessage);
+    await updateMatch.updatePaymentCollected();
     await updatedMatch.updatePlayerCount();
     const statusCount = await calculateStatusCounts(undefined, userId, chatId);
     res.status(200).send({ 
