@@ -145,6 +145,10 @@ const matchSchema = new Schema({
         type: Boolean,
         default: false,
     },
+    isCompleted: {
+        type: Boolean,
+        default: false,
+    },
     isCancelled: {
         type: Boolean,
         default: false,
@@ -183,13 +187,17 @@ matchSchema.methods.isOpenForPlayers = function () {
 
 matchSchema.methods.updateLockTimer = async function() {
     const match = this;
-    if (!match.isLocked) {
+    if (!match.isCompleted) {
+        const matchDuration = parseInt(match.duration);
         const currentTime = moment();
         const kickOffTime = moment(`${match.date} ${match.kickOff}`, 'DD-MM-YYYY hh:mm A');
         if (match.isCancelled) {
             match.lockTimer = 0;
         }
-        else if (kickOffTime.isBefore(currentTime.add(48, 'hours'))) {
+        else if (match.isLocked && kickOffTime.isBefore(currentTime.add(matchDuration, 'minutes'))) {
+            match.isCompleted = true;
+        }
+        else if (!match.isLocked && kickOffTime.isBefore(currentTime.add(48, 'hours'))) {
             match.isLocked = true;
             match.lockTimer = 0;
         }
