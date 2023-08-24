@@ -1,5 +1,4 @@
 import { errorMessage } from '../../config/config.js';
-import User from '../../models/user/User.js';
 import Match from '../../models/match/Match.js';
 import Chat from '../../models/chat/ChatModel.js';
 import { 
@@ -51,22 +50,15 @@ const calculateStatusCounts = async (groupMatches, userId, chatId) => {
 
 export const createMatch = async (req, res) => {
   const { chatId, costPerPerson, title, teamCount } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userInfo = req.userInfo;
   try {
     await matchSchema.validate(req.body);
-    const [chat, user] = await Promise.all([
-      Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v'),
-      User.findOne({ _id: userId }, '-deleted -__v')
-    ]);
+    const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
       return res
         .status(404)
         .send({ error: 'Chat is unavailable.' });
-    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userInfo?.userId);
     if (!isAdmin)
       return res
         .status(404)
@@ -101,10 +93,10 @@ export const createMatch = async (req, res) => {
     });
     await match.updateLockTimer();
     const newMessage = {
-      senderId: userId,
-      deviceId: user.deviceId === undefined ? '000' : user.deviceId,
-      userName: `${user.firstName} ${user.lastName}`,
-      message: `Match was created by ${user.firstName}`,
+      senderId: userInfo?.userId,
+      deviceId: userInfo?.deviceId === undefined ? '000' : userInfo?.deviceId,
+      userName: `${userInfo?.firstName} ${userInfo?.lastName}`,
+      message: `Match was created by ${userInfo?.firstName}`,
       createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
@@ -113,7 +105,7 @@ export const createMatch = async (req, res) => {
     chat.matchExist = true;
     await chat.save();
     await match.populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
-    const statusCount = await calculateStatusCounts(undefined, userId, chatId);
+    const statusCount = await calculateStatusCounts(undefined, userInfo?.userId, chatId);
     res.status(201).send({ 
       match, 
       message: 'Match has been created.',
@@ -126,11 +118,7 @@ export const createMatch = async (req, res) => {
 
 export const getAllMatches = async (req, res) => {
   const { chatId } = req.params
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
     if (!chat)
@@ -166,11 +154,7 @@ export const getAllMatches = async (req, res) => {
 
 export const getActivePlayers = async (req, res) => {
   const { matchId } = req.params;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
   const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
     .populate('players.info', '-_id firstName lastName phone profileUrl deviceId addition');
@@ -202,11 +186,7 @@ export const getActivePlayers = async (req, res) => {
 export const updateMatch = async (req, res) => {
   const { matchId } = req.params;
   const { chatId } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userInfo = req.userInfo;
   try {
     await updateMatchSchema.validate(req.body);
     const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
@@ -223,7 +203,7 @@ export const updateMatch = async (req, res) => {
       return res
         .status(404)
         .send({ error: 'Match is unavaliable.' });
-    const isAdmin = chat.admins.some((admin) => admin.toString() === userId);
+    const isAdmin = chat.admins.some((admin) => admin.toString() === userInfo?.userId);
     if (!isAdmin)
       return res
         .status(404)
@@ -240,12 +220,11 @@ export const updateMatch = async (req, res) => {
         return res
           .status(404)
           .send({ error: 'Something went wrong please try again later.' });
-    const user = await User.findOne({ _id: userId }, '-deleted -__v');
     const newMessage = {
-      senderId: userId,
-      deviceId: user.deviceId ? '000' : user.deviceId,
-      userName: `${user.firstName} ${user.lastName}`,
-      message: `Match '${updateMatch.title}' was updated by ${user.firstName}`,
+      senderId: userInfo?.userId,
+      deviceId: userInfo?.deviceId ? '000' : userInfo?.deviceId,
+      userName: `${userInfo?.firstName} ${userInfo?.lastName}`,
+      message: `Match '${updateMatch.title}' was updated by ${userInfo?.firstName}`,
       createdAt: Firestore.FieldValue.serverTimestamp(),
       type: 'notification',
     };
@@ -263,11 +242,7 @@ export const updateMatch = async (req, res) => {
 export const updatePlayerAddition = async (req,res) => {
   const { matchId } = req.params;
   const { task } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     await updateAdditionalPlayerSchema.validate(req.body);
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
@@ -342,11 +317,7 @@ export const updatePlayerAddition = async (req,res) => {
 export const updateParticiationStatus = async (req,res) => {
   const { matchId } = req.params;
   const { status } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     await updateParticiationStatusSchema.validate(req.body);
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v')
@@ -429,11 +400,7 @@ export const updateParticiationStatus = async (req,res) => {
 export const updatePaymentStatus = async (req,res) => {
   const { matchId } = req.params;
   const { payment, memberId } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     await updatePaymentStatusSchema.validate(req.body);
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
@@ -478,11 +445,7 @@ export const updatePaymentStatus = async (req,res) => {
 export const addPlayersToTeam = async (req, res) => {
   const { matchId } = req.params;
   const { chatId, team, members } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     await addPlayerToTeamSchema.validate(req.body);
     if (members.length === 0)
@@ -533,11 +496,7 @@ export const addPlayersToTeam = async (req, res) => {
 export const removePlayerFromTeam = async (req, res) => {
   const { matchId } = req.params;
   const { chatId, team, memberId } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     await addPlayerToTeamSchema.validate(req.body);
     const chat = await Chat.findOne({ _id: chatId, 'deleted.isDeleted': false }, '-__v');
@@ -577,11 +536,7 @@ export const removePlayerFromTeam = async (req, res) => {
 
 export const cancelMatch = async (req, res) => {
   const { matchId } = req.params;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
     if (!match)
@@ -634,11 +589,7 @@ export const cancelMatch = async (req, res) => {
 
 export const deleteMatch = async (req, res) => {
   const { matchId } = req.params;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const match = await Match.findOne({ _id: matchId, isCancelled: false, isLocked: false }, '-__v');
     if (!match)

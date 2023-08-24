@@ -5,11 +5,6 @@ import { deleteFromBucket, addToBucket } from '../../config/awsConfig.js';
 
 export const getUser = async (req, res) => {
   const { userId } = req.params;
-  const userInfo = req.session.userInfo;
-  if (userId !== userInfo?.userId)
-    return res
-      .status(401)
-      .send({ error: 'You are not authorized for this request.' });
   try {
     const user = await User.findOne({ _id: userId }, '-deleted -__v -password');
     if (!user) 
@@ -23,7 +18,7 @@ export const getUser = async (req, res) => {
 };
 
 export const getUsersList = async (req, res) => {
-  const userInfo = req.session.userInfo;
+  const userInfo = req.userInfo;
   try {
     const users = await User.find({isActive: true}, 
       '_id firstName lastName email phone pictureUrl deviceId');
@@ -43,14 +38,13 @@ export const getUsersList = async (req, res) => {
 export const updateUser = async (req, res) => {
   const { userId } = req.params;
   const updateBody = req.body;
-  const userInfo = req.session.userInfo;
+  const userInfo = req.userInfo;
   if (userId !== userInfo?.userId)
     return res
       .status(401)
       .send({ error: 'You are not authorized for this request.' });
   try {
     await updateUserSchema.validate(req.body);
-    const user = await User.findOne({ _id: userId }, 'profileImage');
     if (updateBody.phone) {
       const phoneExist = await User.findOne({ phone: updateBody.phone }, 'phone');
       if (phoneExist)
@@ -58,13 +52,13 @@ export const updateUser = async (req, res) => {
           .status(404)
           .send({ error: 'Phone number already in use.' });
     }
-    const fileName = req.file ? await addToBucket(req.file, 'profile') : user?.profileImage;
+    const fileName = req.file ? await addToBucket(req.file, 'profile') : userInfo?.profileImage;
     if (fileName.startsWith('error'))
       return res
         .status(500)
         .send({ error: 'Failed to upload image. Please try again later.' });
-    if (user?.profileImage !== fileName)
-      await deleteFromBucket(user?.profileImage);
+    if (userInfo?.profileImage !== fileName)
+      await deleteFromBucket(userInfo?.profileImage);
     const updateUser = await User.findByIdAndUpdate(
       userId,
       {
@@ -91,7 +85,7 @@ export const updateUser = async (req, res) => {
 
 export const changePassword = async (req,res) => {
   const { userId } = req.params;
-  const userInfo = req.session.userInfo;
+  const userInfo = req.userInfo;
   if (userId !== userInfo?.userId)
     return res
       .status(401)
@@ -130,32 +124,25 @@ export const changePassword = async (req,res) => {
 
 export const deleteUser = async (req, res) => {
   const { userId } = req.params;
-  const userInfo = req.session.userInfo;
+  const userInfo = req.userInfo;
   if (userId !== userInfo?.userId)
     return res
       .status(401)
       .send({ error: 'You are not authorized for this request.' });
   try {
-    const user = await User.findOne({ _id: userInfo?.userId }, '-deleted -__v -password');
-    if (!user)
-      return res
-        .status(404)
-        .send({ error: 'Something went wrong please try again later.' });
-    if (user?._doc?.deleted?.isDeleted)
-      return res
-        .status(400)
-        .send({ error: 'Your profile has already been deleted.' })
-    if (user?.profileImage)
-      await deleteFromBucket(user?.profileImage);
-    const deleteProfile = await User.findByIdAndUpdate(user?._id, {
-        deleted: { isDeleted: true, date: new Date() },
+    if (userInfo?.profileImage)
+      await deleteFromBucket(userInfo?.profileImage);
+    const deleteProfile = await User.findByIdAndUpdate(userInfo?.userId, {
+        firstName: 'Deleted', lastName: 'User', email: '', phone: '', dateOfBirth: '',
+        city: '', emergencyName: '', emergencyContact: '', isActive: false, devideId: null,
+        deleted: { isDeleted: true, date: new Date(), email: userInfo?.email.toString() },
         profileImage: 'https://cdn.pixabay.com/photo/2017/11/10/05/48/user-2935527_1280.png',
       });
     if (!deleteProfile)
       return res
         .status(404)
         .send({ error: 'Something went wrong please try again later.' });
-    res.status(410).send({ message: 'Your profile has been deleted.' });
+    res.status(201).send({ message: 'Your profile has been deleted.' });
   } catch (error) {
     errorMessage(res,error);
   }
