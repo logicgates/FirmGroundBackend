@@ -14,7 +14,6 @@ const userSchema = new Schema({
   },
   email: {
     type: String,
-    unique: true,
     trim: true,
     required: true,
   },
@@ -88,6 +87,10 @@ const userSchema = new Schema({
         type: Date,
         default: null,
       },
+      email: {
+        type: String,
+        default: ''
+      }
     },
   },
   { timestamps: true }
