@@ -133,8 +133,9 @@ export const deleteUser = async (req, res) => {
     if (userInfo?.profileImage)
       await deleteFromBucket(userInfo?.profileImage);
     const deleteProfile = await User.findByIdAndUpdate(userInfo?.userId, {
-        firstName: 'Deleted', lastName: 'User', email: '', phone: '',
-        deleted: { isDeleted: true, date: new Date(), email: user.email.toString() },
+        firstName: 'Deleted', lastName: 'User', email: '', phone: '', dateOfBirth: '',
+        city: '', emergencyName: '', emergencyContact: '', isActive: false, devideId: null,
+        deleted: { isDeleted: true, date: new Date(), email: userInfo?.email.toString() },
         profileImage: 'https://cdn.pixabay.com/photo/2017/11/10/05/48/user-2935527_1280.png',
       });
     if (!deleteProfile)
