@@ -121,11 +121,7 @@ async function removePlayerFromMatches (memberId, chatId) {
 
 export const createChat = async (req, res) => {
   const { title, members } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const parsedMembers = typeof members === 'string' ? JSON.parse(members) : members;
     const isPrivate = parsedMembers.length === 1;
@@ -186,12 +182,8 @@ export const createChat = async (req, res) => {
 };
 
 export const getChat = async (req, res) => {
-  const userId = req.session.userInfo?.userId;
   const { chatId } = req.params;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v')
       .populate('admins', 'firstName lastName phone profileUrl deviceId')
@@ -218,11 +210,7 @@ export const getChat = async (req, res) => {
 };
 
 export const getAllChats = async (req, res) => {
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-    return res
-      .status(401)
-      .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chats = await Chat.find({
         $or: [
@@ -258,11 +246,7 @@ export const getAllChats = async (req, res) => {
 
 export const updateChat = async (req, res) => {
   const { chatId } = req.params;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chat = await Chat.findOne(
       { 
@@ -314,11 +298,7 @@ export const updateChat = async (req, res) => {
 export const addMembers = async (req, res) => {
   const { chatId } = req.params;
   const { members } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chat = await Chat.findOne({
       _id: chatId,
@@ -388,11 +368,7 @@ export const addMembers = async (req, res) => {
 export const removeMember = async (req,res) => {
   const { chatId } = req.params;
   const { memberId } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chat = await Chat.findOne(
       { 
@@ -446,11 +422,7 @@ export const removeMember = async (req,res) => {
 export const makeAdmin = async (req,res) => {
   const { chatId } = req.params;
   const { memberId } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chat = await Chat.findOne(
       { 
@@ -506,11 +478,7 @@ export const makeAdmin = async (req,res) => {
 export const removeAdmin = async (req,res) => {
   const { chatId } = req.params;
   const { memberId } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const chat = await Chat.findOne(
       { 
@@ -565,11 +533,7 @@ export const removeAdmin = async (req,res) => {
 
 export const leaveChat = async (req,res) => {
   const { chatId } = req.params;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     const timeStamp = Firestore.FieldValue.serverTimestamp();
     const userLoggedIn = await User.findOne({ _id: userId }, '-deleted -__v');
@@ -676,11 +640,7 @@ export const leaveChat = async (req,res) => {
 
 export const deleteChat = async (req, res) => {
   const { chatIds } = req.body;
-  const userId = req.session.userInfo?.userId;
-  if (!userId)
-      return res
-        .status(401)
-        .send({ error: 'User timeout. Please login again.' });
+  const userId = req.userInfo?.userId;
   try {
     for (const chatId of chatIds) {
       const chat = await Chat.findOne({ _id: chatId }, '-deleted -__v');
