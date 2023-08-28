@@ -466,7 +466,7 @@ export const socialAccountLogin = async (req, res) => {
     const currentLoginDate = new Date();
     await socialRegisterSchema.validate(req.body);
     let user;
-    if (req.body.registerMethod === 'facebook' && !req.body?.email) {
+    if (req.body?.registerMethod === 'facebook' && !req.body?.email) {
       if (!req.body?.facebookId)
         return res
           .status(400)
@@ -492,7 +492,7 @@ export const socialAccountLogin = async (req, res) => {
       if (req.body.registerMethod === 'facebook' && req.body?.facebookId)
         user = await User.findByIdAndUpdate(user?._doc?._id, {
           facebookId: req.body?.facebookId,
-        });
+        }, {new: true});
     }
     let accessToken;
     let refreshToken;
@@ -535,6 +535,7 @@ export const socialAccountLogin = async (req, res) => {
         email: req.body.email,
         profileImage: filename,
         registerMethod: req.body?.registerMethod,
+        facebookId: req.body?.facebookId ? req.body?.facebookId : '',
         lastLoginAt: currentLoginDate,
       });
       if (!user)
