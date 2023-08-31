@@ -2,7 +2,7 @@ import { object, string } from 'yup';
 
 export const registerSchema = object({
     firstName: string().required('First name required.'),
-    lastName: string().required('Last name required.'),
+    lastName: string(),
     email: string().email().required('Email is required.'),
     password: string().required('Password is required.').min(8, 'Password is too short - should be 8 chars minimum.'),
     dateOfBirth: string().required('Date of Birth is required.'),
@@ -44,14 +44,14 @@ export const verifyUserRegisterationSchema = object({
 
 export const socialRegisterSchema = object({
     firstName: string().required('First Name is required'),
-    lastName: string().required('Last Name is required'),
+    lastName: string(),
     registerMethod: string()?.required('Please tell me about the registration method.'),
     profileImage: string(),
 });
 
 export const updateUserSchema = object({
     firstName: string().required('First name required.'),
-    lastName: string().required('Last name required.'),
+    lastName: string(),
     dateOfBirth: string().required('Date of Birth is required.'),
     countryCode: string(),
     emergencyName: string(),
