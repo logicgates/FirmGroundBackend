@@ -9,7 +9,6 @@ const userSchema = new Schema({
   },
   lastName: {
     type: String,
-    required: true,
     trim: true,
   },
   email: {
@@ -79,22 +78,20 @@ const userSchema = new Schema({
     trim: true,
   },
   deleted: {
-      isDeleted: {
-        type: Boolean,
-        default: false,
-      },
-      date: {
-        type: Date,
-        default: null,
-      },
-      email: {
-        type: String,
-        default: ''
-      }
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
+    date: {
+      type: Date,
+      default: null,
+    },
+    email: {
+      type: String,
+      default: ''
+    }
   },
-  { timestamps: true }
-);
+}, { timestamps: true });
 
 userSchema.methods.comparePassword = function (password) {
   return bcrypt.compareSync(password, this.password);

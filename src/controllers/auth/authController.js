@@ -26,9 +26,10 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const mailAddress = 'myfirmground@gmail.com';
 
 export const login = async (req, res) => {
+  const email = req.body?.email.trim().toLowerCase();
   try {
     await loginSchema.validate(req.body);
-    const user = await User.findOne({email: req.body?.email.toLowerCase()});
+    const user = await User.findOne({ email });
     if (!user) 
       return res
         .status(404)
@@ -69,10 +70,11 @@ export const login = async (req, res) => {
 };
 
 export const registerAndSendCode = async (req, res) => {
-  const { email, phone } = req.body;
+  const { phone } = req.body;
+  const email = req.body?.email.trim().toLowerCase();
   try {
     await registerSchema.validate(req.body);
-    let emailExist = await User.findOne({email: email.toLowerCase()});
+    let emailExist = await User.findOne({ email });
     if (emailExist) {
       if (!emailExist.isActive)
         return res
@@ -146,7 +148,7 @@ export const registerAndSendCode = async (req, res) => {
 };
 
 export const resendRegisterCode = async (req, res) => {
-  const { email } = req.body;
+  const email = req.body?.email.trim().toLowerCase();
   try {
     await resendVerifySchema.validate(req.body);
     const user = await User.findOne({ email: email.toLowerCase() }).exec();
@@ -250,7 +252,7 @@ export const verifyUserRegisteration = async (req, res) => {
 };
 
 export const sendForgotCode = async (req, res) => {
-  const { email } = req.body;
+  const email = req.body?.email.trim().toLowerCase();
   try {
     await resendVerifySchema.validate(req.body);
     let user = await User.findOne({email: email.toLowerCase()});
@@ -308,7 +310,7 @@ export const sendForgotCode = async (req, res) => {
 };
 
 export const resendVerifyForgotCode = async (req, res) => {
-  const { email } = req.body;
+  const email = req.body?.email.trim().toLowerCase();
   try {
     await resendVerifySchema.validate(req.body);
     const user = await User.findOne({ email: email.toLowerCase() }).exec();
@@ -462,17 +464,18 @@ export const generateRefreshToken = async (req, res) => {
 };
 
 export const socialAccountLogin = async (req, res) => {
+  const email = req.body?.email.trim().toLowerCase();
   try {
     const currentLoginDate = new Date();
     await socialRegisterSchema.validate(req.body);
     let user;
-    if (req.body?.registerMethod === 'facebook' && !req.body?.email) {
+    if (req.body?.registerMethod === 'facebook' && !email) {
       if (!req.body?.facebookId)
         return res
           .status(400)
           .send({ error: 'Facebook user id is required.' });
       user = await User.findOne({ facebookId: req.body?.facebookId });
-      if (!user && !req.body?.email)
+      if (!user && !email)
         return res
           .status(400)
           .send({
@@ -488,8 +491,8 @@ export const socialAccountLogin = async (req, res) => {
         return res
           .status(400)
           .send({ error: 'Email is required.' });
-      user = await User.findOne({ email: req.body?.email });
-      if (req.body.registerMethod === 'facebook' && req.body?.facebookId)
+      user = await User.findOne({ email });
+      if (req.body?.registerMethod === 'facebook' && req.body?.facebookId)
         user = await User.findByIdAndUpdate(user?._doc?._id, {
           facebookId: req.body?.facebookId,
         }, {new: true});
