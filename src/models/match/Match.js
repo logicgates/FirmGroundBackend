@@ -130,7 +130,7 @@ const matchSchema = new Schema({
         trim: true
     },
     recurring: {
-        type: String,
+        type: Boolean,
         default: false,
         trim: true,
     },
