@@ -45,7 +45,7 @@ export const updateUser = async (req, res) => {
       .send({ error: 'You are not authorized for this request.' });
   try {
     await updateUserSchema.validate(req.body);
-    if (updateBody.phone) {
+    if (updateBody.phone && !updateBody.phone === "") {
       const phoneExist = await User.findOne({ phone: updateBody.phone }, 'phone');
       if (phoneExist)
         return res

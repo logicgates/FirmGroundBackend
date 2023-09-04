@@ -5,7 +5,7 @@ export const registerSchema = object({
     lastName: string(),
     email: string().email().required('Email is required.'),
     password: string().required('Password is required.').min(8, 'Password is too short - should be 8 chars minimum.'),
-    dateOfBirth: string().required('Date of Birth is required.'),
+    dateOfBirth: string(),
     countryCode: string(),
     phone: string(),
     emergencyName: string(),
@@ -52,7 +52,7 @@ export const socialRegisterSchema = object({
 export const updateUserSchema = object({
     firstName: string().required('First name required.'),
     lastName: string(),
-    dateOfBirth: string().required('Date of Birth is required.'),
+    dateOfBirth: string(),
     countryCode: string(),
     emergencyName: string(),
     emergencyContact: string(),
