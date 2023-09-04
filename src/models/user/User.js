@@ -30,7 +30,7 @@ const userSchema = new Schema({
     require: true,
     default: 'email',
     trim: true,
-    enum: ['email', 'facebook', 'google'],
+    enum: ['email', 'facebook', 'google', 'apple'],
   },
   facebookId: {
     type: String,
