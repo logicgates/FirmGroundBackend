@@ -5,6 +5,7 @@ import {
   deleteUser,
   updateUser,
   changePassword,
+  checkAppVersion,
 } from '../../controllers/user/userController.js';
 import {
   registerAndSendCode,
@@ -47,6 +48,7 @@ const router = express.Router();
 
 router.get('/user/:userId', checkUserSession, getUser);
 router.get('/users-list', checkUserSession, getUsersList)
+router.post('/version/:versionId', checkAppVersion);
 router.post('/change-password/:userId', checkUserSession, changePassword);
 router.put('/update/:userId', checkUserSession, upload.single('image'), updateUser);
 router.delete('/delete/:userId', checkUserSession, deleteUser);
