@@ -35,6 +35,21 @@ export const getUsersList = async (req, res) => {
   }
 };
 
+export const getUserBlockList = async (req, res) => {
+  const userInfo = req.userInfo;
+  try {
+    const user = await User.findOne({ _id: userInfo.userId }, '-deleted -__v')
+      .populate('blocked', 'fistName lastName profileImage phone');
+    if (!user)
+      return res
+        .status(404)
+        .send({ error: 'Error retrieving user.' });
+    res.status(200).send({ blocked: user.blocked });
+  } catch (error) {
+    errorMessage(res,error);
+  }
+};
+
 export const updateUser = async (req, res) => {
   const { userId } = req.params;
   const updateBody = req.body;
