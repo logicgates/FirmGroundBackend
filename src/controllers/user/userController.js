@@ -2,15 +2,47 @@ import { errorMessage  } from '../../config/config.js';
 import User from '../../models/user/User.js';
 import { updateUserSchema, changePasswordSchema } from '../../schema/user/userSchema.js'
 import { deleteFromBucket, addToBucket } from '../../config/awsConfig.js';
+import db from '../../config/firebaseConfig.js';
+
+export const checkAppVersion = async (req, res) => {
+  const versionId =  req.params?.versionId.toString();
+  try {
+    const versionRef = db.collection('app-version').doc('firmground');
+    versionRef.get().then((doc) => {
+      if (doc.exists) {
+        const version = doc.data().version.toString();
+
+        if (versionId === version)
+          return res
+            .status(200)
+            .send({ version: versionId })
+        else
+          return res
+            .status(200)
+            .send({ version, message: "New update is available" });
+
+      } else {
+          return res
+            .status(404)
+            .send({ error: "Document does not exist" });
+      }
+    }).catch((error) => {
+      // console.error('Error getting document:', error);
+    });
+
+  } catch (error) {
+    errorMessage(res,error);
+  }
+}
 
 export const getUser = async (req, res) => {
   const { userId } = req.params;
   try {
     const user = await User.findOne({ _id: userId }, '-deleted -__v -password');
     if (!user) 
-    return res
-      .status(404)
-      .send({ error: 'User not found.' });
+      return res
+        .status(404)
+        .send({ error: 'User not found.' });
     res.status(200).send({ user });
   } catch (error) {
     errorMessage(res,error);
