@@ -95,9 +95,9 @@ export const changePassword = async (req,res) => {
     const { password, oldPassword } = req.body;
     const user = await User.findOne({ _id: userId }, '-deleted -__v');
     if (!user) 
-    return res
-      .status(404)
-      .send({ error: 'User not found.' });
+      return res
+        .status(404)
+        .send({ error: 'User not found.' });
     const checkPassword = await bcrypt.compare(oldPassword, user?.password);
     if (!checkPassword)
       return res
@@ -117,6 +117,35 @@ export const changePassword = async (req,res) => {
         .status(500)
         .send({ error: 'Something went wrong please try again later.' });
     res.status(200).send({ message: 'Your password has been updated.' });
+  } catch (error) {
+    errorMessage(res,error);
+  }
+};
+
+export const blockOrUnblockUser = async (req, res) => {
+  const { userId } = req.params;
+  const userInfo = req.userInfo;
+  try {
+    const user = await User.findOne({ _id: userInfo.userId }, '-deleted -__v');
+    const alreadyBlocked = user.blocked.includes(userId);
+    if (!alreadyBlocked) {
+      const updateUser = await User.findByIdAndUpdate(userInfo.userId,
+        { $push: { blocked: userId }}, { new: true } );
+      if (!updateUser)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+      return res.status(200).send({ user: updateUser, message:'User has been blocked' });
+    }
+    else {
+      const updateUser = await User.findByIdAndUpdate(userInfo.userId,
+        { $pull: { blocked: userId }}, { new: true } );
+      if (!updateUser)
+        return res
+          .status(404)
+          .send({ error: 'Something went wrong please try again later.' });
+      return res.status(200).send({ user: updateUser, message:'User has been unblocked' });
+    }
   } catch (error) {
     errorMessage(res,error);
   }
