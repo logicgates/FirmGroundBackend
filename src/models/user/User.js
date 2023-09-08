@@ -77,6 +77,10 @@ const userSchema = new Schema({
     default: 'https://cdn.pixabay.com/photo/2017/11/10/05/48/user-2935527_1280.png',
     trim: true,
   },
+  blocked: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+  }],
   deleted: {
     isDeleted: {
       type: Boolean,
