@@ -13,7 +13,7 @@ export const getAllStadiums = async (req, res) => {
     } catch (error) {
         errorMessage(res,error);
     }
-}
+};
 
 export const addStadium = async (req, res) => {
     try {
