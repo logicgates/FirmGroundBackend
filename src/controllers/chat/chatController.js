@@ -137,6 +137,8 @@ export const createChat = async (req, res) => {
       const user = await User.findOne({ _id: member._id }).select('firstName lastName');
       chatExists.title = `${user.firstName} ${user.lastName}`;
       chatExists.chatImage = user.profileImage ? user.profileImage : chatExists.chatImage;
+      await chatExists.populate('admins', 'firstName lastName phone profileUrl deviceId');
+      await chatExists.populate('membersList', 'firstName lastName phone profileUrl deviceId');
       return res.status(200).send({ chat: chatExists, isAlreadyExist: true });
     }
     const fileName = req.file 
