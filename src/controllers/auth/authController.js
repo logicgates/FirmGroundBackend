@@ -27,6 +27,7 @@ const mailAddress = 'myfirmground@gmail.com';
 
 export const login = async (req, res) => {
   const email = req.body?.email.trim().toLowerCase();
+  const password = req.body?.password;
   try {
     await loginSchema.validate(req.body);
     const user = await User.findOne({ email });
@@ -38,7 +39,11 @@ export const login = async (req, res) => {
       return res
         .status(403)
         .send({ error: 'Email is not verified.' });
-    if (!user.comparePassword(req.body?.password))
+    if (!user.password)
+      return res
+        .status(403)
+        .send({ error: `Email linked to ${user.registerMethod} account` });
+    if (!user.comparePassword(password))
       return res
         .status(401)
         .send({ error: 'Password is incorrect.' });
@@ -538,6 +543,7 @@ export const socialAccountLogin = async (req, res) => {
         email: req.body.email,
         profileImage: filename,
         registerMethod: req.body?.registerMethod,
+        isActive: true,
         facebookId: req.body?.facebookId ? req.body?.facebookId : '',
         lastLoginAt: currentLoginDate,
       });
