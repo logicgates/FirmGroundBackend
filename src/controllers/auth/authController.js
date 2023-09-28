@@ -41,7 +41,7 @@ export const login = async (req, res) => {
         .send({ error: 'Email is not verified.' });
     if (!user.password)
       return res
-        .status(403)
+        .status(401)
         .send({ error: `Email linked to ${user.registerMethod} account` });
     if (!user.comparePassword(password))
       return res
